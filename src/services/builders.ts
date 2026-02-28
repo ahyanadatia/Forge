@@ -18,7 +18,59 @@ export async function getBuilderByUsername(client: Client, username: string) {
   const { data, error } = await client
     .from("builders")
     .select("*")
-    .eq("github_username", username)
+    .eq("username", username)
+    .single();
+
+  if (error) throw error;
+  return data as unknown as Builder;
+}
+
+export async function getBuilderByOldUsername(client: Client, username: string) {
+  const { data, error } = await client
+    .from("username_history")
+    .select("builder_id, new_username")
+    .eq("old_username", username)
+    .order("changed_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) return null;
+  return data as { builder_id: string; new_username: string };
+}
+
+export async function checkUsernameAvailability(
+  client: Client,
+  username: string
+): Promise<{ available: boolean; suggestion?: string }> {
+  const { data } = await client
+    .from("builders")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (!data) return { available: true };
+  return { available: false, suggestion: `${username}${Math.floor(Math.random() * 99)}` };
+}
+
+export async function setUsername(
+  client: Client,
+  builderId: string,
+  username: string,
+  oldUsername?: string | null
+) {
+  if (oldUsername) {
+    await client.from("username_history").insert({
+      builder_id: builderId,
+      old_username: oldUsername,
+      new_username: username,
+    });
+  }
+
+  const { data, error } = await client
+    .from("builders")
+    .update({ username })
+    .eq("id", builderId)
+    .select()
     .single();
 
   if (error) throw error;
@@ -34,11 +86,17 @@ export async function updateBuilder(
     middle_names?: string | null;
     last_name?: string;
     display_name?: string | null;
+    username?: string | null;
     role_descriptor?: string | null;
     location?: string | null;
     bio?: string | null;
     availability?: string;
     skills?: BuilderSkills;
+    self_backend?: number;
+    self_frontend?: number;
+    self_ml?: number;
+    self_systems?: number;
+    self_devops?: number;
     university_or_company?: string | null;
     primary_stack?: string | null;
     secondary_stack?: string | null;
@@ -82,7 +140,7 @@ export async function searchBuilders(
 
   if (params.query) {
     query = query.or(
-      `full_name.ilike.%${params.query}%,first_name.ilike.%${params.query}%,last_name.ilike.%${params.query}%,github_username.ilike.%${params.query}%,role_descriptor.ilike.%${params.query}%`
+      `full_name.ilike.%${params.query}%,first_name.ilike.%${params.query}%,last_name.ilike.%${params.query}%,username.ilike.%${params.query}%,github_username.ilike.%${params.query}%,role_descriptor.ilike.%${params.query}%`
     );
   }
 

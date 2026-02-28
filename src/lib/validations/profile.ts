@@ -74,11 +74,6 @@ export const profileSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => v || null),
-  skill_backend: z.coerce.number().min(0).max(100).default(0),
-  skill_frontend: z.coerce.number().min(0).max(100).default(0),
-  skill_ml: z.coerce.number().min(0).max(100).default(0),
-  skill_systems_design: z.coerce.number().min(0).max(100).default(0),
-  skill_devops: z.coerce.number().min(0).max(100).default(0),
 });
 
 export type ProfileFormData = z.infer<typeof profileSchema>;

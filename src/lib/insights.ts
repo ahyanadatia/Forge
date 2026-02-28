@@ -5,6 +5,7 @@ import type {
   ProjectInsight,
   Project,
 } from "@/types";
+import { computeFinalSkills } from "./skills";
 
 interface BuilderInsightInput {
   builder: Builder;
@@ -34,9 +35,9 @@ export function generateBuilderInsights(
 
 function identifyStrengths(input: BuilderInsightInput): string[] {
   const strengths: string[] = [];
-  const { skills } = input.builder;
+  const computed = computeFinalSkills(input.builder);
 
-  const skillEntries = Object.entries(skills) as [string, number][];
+  const skillEntries = Object.entries(computed) as [string, number][];
   const topSkills = skillEntries
     .filter(([, v]) => v >= 70)
     .sort((a, b) => b[1] - a[1])

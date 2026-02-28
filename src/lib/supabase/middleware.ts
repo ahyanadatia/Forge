@@ -53,5 +53,23 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Redirect authenticated users without a username to onboarding
+  const pathname = request.nextUrl.pathname;
+  const skipOnboarding = pathname.startsWith("/onboarding") || pathname.startsWith("/api/") || pathname === "/login" || pathname === "/signup" || pathname.startsWith("/u/");
+
+  if (user && !skipOnboarding) {
+    const { data: builder } = await supabase
+      .from("builders")
+      .select("username")
+      .eq("id", user.id)
+      .single();
+
+    if (builder && !builder.username) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding/username";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }

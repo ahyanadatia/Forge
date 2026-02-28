@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getBuilderStats } from "@/services/builders";
-import { computeForgeScore } from "@/lib/scoring";
+import { gatherScoreInputs } from "@/services/score-data";
+import { computeForgeScoreV2 } from "@/lib/forge-score";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -13,102 +13,71 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { builder_id } = await request.json();
-  const targetId = builder_id || user.id;
+  let targetId = user.id;
+  try {
+    const body = await request.json().catch(() => ({}));
+    if (body.builder_id) targetId = body.builder_id;
+  } catch {
+    // Use current user
+  }
 
   try {
-    const stats = await getBuilderStats(supabase, targetId);
+    const inputs = await gatherScoreInputs(supabase, targetId);
+    const result = computeForgeScoreV2(inputs);
 
-    const { data: teamData } = await supabase
-      .from("team_members")
-      .select("team_id")
-      .eq("builder_id", targetId) as { data: any[] | null };
+    // Store on the builders row (bypasses trigger via server context)
+    const { error: updateErr } = await (supabase as any)
+      .from("builders")
+      .update({
+        forge_score: result.forge_score,
+        confidence_score: result.confidence_score,
+        delivery_success_score: result.delivery_success_score,
+        reliability_score: result.reliability_score,
+        delivery_quality_score: result.delivery_quality_score,
+        consistency_score: result.consistency_score,
+        last_scored_at: new Date().toISOString(),
+      })
+      .eq("id", targetId);
 
-    const { data: deliveries } = await supabase
-      .from("deliveries")
-      .select("created_at, status")
-      .eq("builder_id", targetId)
-      .order("created_at", { ascending: true }) as { data: any[] | null };
+    if (updateErr) {
+      console.error("Failed to store score:", updateErr);
+    }
 
-    const activeMonths = countActiveMonths(
-      (deliveries ?? []).map((d: any) => d.created_at)
-    );
-    const consecutiveActiveMonths = countConsecutiveActiveMonths(
-      (deliveries ?? []).map((d: any) => d.created_at)
-    );
-
-    const result = computeForgeScore({
-      verifiedDeliveries: stats.verifiedDeliveries,
-      totalDeliveries: stats.totalDeliveries,
-      completedDeliveries: stats.completedDeliveries,
-      droppedDeliveries: stats.droppedDeliveries,
-      projectsJoined: stats.totalDeliveries,
-      projectsCompleted: stats.completedDeliveries,
-      teamDeliveries: teamData?.length ?? 0,
-      totalTeams: stats.totalTeams,
-      activeMonths,
-      consecutiveActiveMonths,
-    });
-
-    const { data: existing } = await supabase
+    // Also update the legacy forge_scores table for backward compatibility
+    const { data: existing } = await (supabase as any)
       .from("forge_scores")
       .select("id")
       .eq("builder_id", targetId)
-      .single() as { data: any };
+      .single();
+
+    const legacyRow = {
+      score: result.forge_score,
+      verified_deliveries_component: result.delivery_success_score,
+      reliability_component: result.reliability_score,
+      collaboration_component: result.delivery_quality_score,
+      consistency_component: result.consistency_score,
+      confidence: result.confidence_score,
+      effective_score: result.forge_score,
+      computed_at: new Date().toISOString(),
+    };
 
     if (existing) {
       await (supabase as any)
         .from("forge_scores")
-        .update({
-          ...result,
-          computed_at: new Date().toISOString(),
-        })
+        .update(legacyRow)
         .eq("builder_id", targetId);
     } else {
-      await (supabase as any).from("forge_scores").insert({
-        builder_id: targetId,
-        ...result,
-      });
+      await (supabase as any)
+        .from("forge_scores")
+        .insert({ builder_id: targetId, ...legacyRow });
     }
 
     return NextResponse.json({ success: true, score: result });
   } catch (error: any) {
+    console.error("Score computation failed:", error);
     return NextResponse.json(
       { error: error.message ?? "Failed to compute score" },
       { status: 500 }
     );
   }
-}
-
-function countActiveMonths(dates: string[]): number {
-  const months = new Set(
-    dates.map((d) => {
-      const date = new Date(d);
-      return `${date.getFullYear()}-${date.getMonth()}`;
-    })
-  );
-  return months.size;
-}
-
-function countConsecutiveActiveMonths(dates: string[]): number {
-  if (dates.length === 0) return 0;
-
-  const months = [
-    ...new Set(
-      dates.map((d) => {
-        const date = new Date(d);
-        return date.getFullYear() * 12 + date.getMonth();
-      })
-    ),
-  ].sort((a, b) => b - a);
-
-  let streak = 1;
-  for (let i = 1; i < months.length; i++) {
-    if (months[i - 1] - months[i] === 1) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-  return streak;
 }

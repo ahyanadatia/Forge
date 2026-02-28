@@ -97,9 +97,9 @@ export function ProfileHeader({ builder, forgeScore, stats, isOwner }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={availability.variant}>{availability.label}</Badge>
-          {forgeScore && (
+          {((builder as any).forge_score > 0 || forgeScore) && (
             <Badge variant="outline" className="font-mono tabular-nums">
-              Forge Score: {forgeScore.score}
+              Forge Score: {(builder as any).forge_score || forgeScore?.score || 0}
             </Badge>
           )}
           <Badge variant="outline" className="tabular-nums">

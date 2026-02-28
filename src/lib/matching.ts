@@ -1,4 +1,5 @@
 import type { Builder, BuilderSkills, Project, MatchResult } from "@/types";
+import { computeFinalSkills, finalToLegacySkills } from "./skills";
 
 interface MatchInput {
   builder: Builder;
@@ -23,9 +24,10 @@ function scoreCandidate(
   project: Project,
   candidate: MatchInput
 ): MatchResult {
+  const effectiveSkills = finalToLegacySkills(computeFinalSkills(candidate.builder));
   const capabilityFit = computeCapabilityFit(
     project.required_skills,
-    candidate.builder.skills
+    effectiveSkills
   );
   const reliabilityFit = computeReliabilityFit(
     candidate.builderStats.completionRate
