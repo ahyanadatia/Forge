@@ -22,7 +22,7 @@ export async function GET(
     .from("projects")
     .select("*, builders!projects_owner_id_fkey(forge_score)")
     .eq("id", params.id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!project || project.owner_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
