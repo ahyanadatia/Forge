@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
 import { getScoreBand } from "@/lib/forge-score";
+import { OnboardingOrchestrator } from "@/components/onboarding/onboarding-orchestrator";
 
 export const dynamic = 'force-dynamic';
 
@@ -58,10 +59,36 @@ export default async function DashboardPage() {
   const forgeScore = scoreResult;
   const pendingApps = applications.filter((a) => a.status === "pending");
 
+  const { count: projectCount } = await (supabase as any)
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", user.id);
+
+  const { count: inviteCount } = await (supabase as any)
+    .from("invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("invited_by", user.id);
+
+  const b = builder as any;
+
   return (
     <div className="container max-w-4xl py-8 space-y-8">
+      <OnboardingOrchestrator
+        userId={user.id}
+        builder={{
+          username: b.username,
+          avatar_url: b.avatar_url,
+          github_username: b.github_username,
+          forge_score: b.forge_score,
+          last_scored_at: b.last_scored_at,
+        }}
+        hasDeliveries={stats.verifiedDeliveries > 0}
+        hasProjects={(projectCount ?? 0) > 0}
+        hasInvitesSent={(inviteCount ?? 0) > 0}
+      />
+
       {/* Welcome */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour="profile-header">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Welcome back, {builder.first_name ?? getDisplayName(builder).split(" ")[0]}
@@ -71,6 +98,12 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/projects/new" data-tour="create-project">
+            <Button size="sm">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Create Project
+            </Button>
+          </Link>
           <Link href={`/profile/${user.id}`}>
             <Button variant="outline" size="sm">
               View Profile
@@ -82,18 +115,20 @@ export default async function DashboardPage() {
 
       {/* Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label="Forge Score"
-          value={(builder as any).forge_score || forgeScore?.score || "—"}
-          sublabel={
-            (builder as any).forge_score > 0
-              ? `${getScoreBand((builder as any).forge_score)} · ${(builder as any).confidence_score ?? 0}% confidence`
-              : forgeScore
-                ? `Confidence: ${forgeScore.confidence}%`
-                : "Not yet computed"
-          }
-          icon={ShieldCheck}
-        />
+        <div data-tour="forge-score">
+          <MetricCard
+            label="Forge Score"
+            value={b.forge_score || forgeScore?.score || "—"}
+            sublabel={
+              b.forge_score > 0
+                ? `${getScoreBand(b.forge_score)} · ${b.confidence_score ?? 0}% confidence`
+                : forgeScore
+                  ? `Confidence: ${forgeScore.confidence}%`
+                  : "Not yet computed"
+            }
+            icon={ShieldCheck}
+          />
+        </div>
         <MetricCard
           label="Verified Deliveries"
           value={stats.verifiedDeliveries}

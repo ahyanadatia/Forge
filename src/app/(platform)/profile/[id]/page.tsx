@@ -4,15 +4,14 @@ import { getBuilder, getBuilderStats } from "@/services/builders";
 import { getBuilderDeliveries } from "@/services/deliveries";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ExecutionSummary } from "@/components/profile/execution-summary";
-import { Card, CardContent } from "@/components/ui/card";
-import { ForgeScoreBreakdown } from "@/components/score/forge-score-breakdown";
-import { ForgeScoreExplainer } from "@/components/score/forge-score-explainer";
-import { ForgeScoreImprove } from "@/components/score/forge-score-improve";
 import { DeliveriesList } from "@/components/profile/deliveries-list";
 import { ReliabilityPanel } from "@/components/profile/reliability-panel";
 import { InsightsPanel } from "@/components/profile/insights-panel";
-
-import { StrengthHeatmap } from "@/components/profile/strength-heatmap";
+import { ScoreSummaryCard } from "@/components/profile/score-summary-card";
+import { CapabilityMapCard } from "@/components/profile/capability-map-card";
+import { ProfileInsightsCard } from "@/components/profile/profile-insights-card";
+import { ScoreExplainerSheet } from "@/components/profile/score-explainer-sheet";
+import { safeSkillValue } from "@/lib/score/format";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +50,26 @@ export default async function BuilderProfilePage({ params }: Props) {
   const b = builder as any;
   const hasBuilderScore = b.forge_score > 0 || b.last_scored_at;
 
+  const score = hasBuilderScore ? b.forge_score : (forgeScore?.score ?? 0);
+  const conf = hasBuilderScore ? b.confidence_score : (forgeScore?.confidence ?? 0);
+
+  const trustData = {
+    deliverySuccess: hasBuilderScore ? b.delivery_success_score : (forgeScore?.verified_deliveries_component ?? 0),
+    reliability: hasBuilderScore ? b.reliability_score : (forgeScore?.reliability_component ?? 0),
+    quality: hasBuilderScore ? b.delivery_quality_score : (forgeScore?.collaboration_component ?? 0),
+    consistency: hasBuilderScore ? b.consistency_score : (forgeScore?.consistency_component ?? 0),
+  };
+
+  const skillDims = {
+    backend: safeSkillValue(b.ai_backend ?? b.self_backend),
+    frontend: safeSkillValue(b.ai_frontend ?? b.self_frontend),
+    ml: safeSkillValue(b.ai_ml ?? b.self_ml),
+    systems: safeSkillValue(b.ai_systems ?? b.self_systems),
+    devops: safeSkillValue(b.ai_devops ?? b.self_devops),
+  };
+
   return (
-    <div className="container max-w-4xl py-8 space-y-8">
+    <div className="container max-w-5xl py-8 space-y-8">
       <ProfileHeader
         builder={builder}
         forgeScore={forgeScore}
@@ -62,53 +79,47 @@ export default async function BuilderProfilePage({ params }: Props) {
 
       <ExecutionSummary stats={stats} />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <ForgeScoreBreakdown
-          forgeScore={hasBuilderScore ? b.forge_score : (forgeScore?.score ?? 0)}
-          confidence={hasBuilderScore ? b.confidence_score : (forgeScore?.confidence ?? 0)}
-          deliverySuccess={hasBuilderScore ? b.delivery_success_score : (forgeScore?.verified_deliveries_component ?? 0)}
-          reliability={hasBuilderScore ? b.reliability_score : (forgeScore?.reliability_component ?? 0)}
-          deliveryQuality={hasBuilderScore ? b.delivery_quality_score : (forgeScore?.collaboration_component ?? 0)}
-          consistency={hasBuilderScore ? b.consistency_score : (forgeScore?.consistency_component ?? 0)}
+      {/* 3-panel score section */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr_1fr]" data-tour="forge-score">
+        <ScoreSummaryCard
+          forgeScore={score}
+          confidence={conf}
+          deliverySuccess={trustData.deliverySuccess}
+          reliability={trustData.reliability}
+          deliveryQuality={trustData.quality}
+          consistency={trustData.consistency}
           lastScoredAt={b.last_scored_at ?? forgeScore?.computed_at}
         />
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <StrengthHeatmap
-                forgeScore={hasBuilderScore ? b.forge_score : (forgeScore?.score ?? 0)}
-                confidence={hasBuilderScore ? b.confidence_score : (forgeScore?.confidence ?? 0)}
-                dimensions={{
-                  backend: b.ai_backend ?? b.self_backend ?? 0,
-                  frontend: b.ai_frontend ?? b.self_frontend ?? 0,
-                  ml: b.ai_ml ?? b.self_ml ?? 0,
-                  systems: b.ai_systems ?? b.self_systems ?? 0,
-                  devops: b.ai_devops ?? b.self_devops ?? 0,
-                }}
-              />
-            </CardContent>
-          </Card>
-          <ForgeScoreExplainer />
-        </div>
+        <CapabilityMapCard
+          forgeScore={score}
+          confidence={conf}
+          dimensions={skillDims}
+        />
+        <ProfileInsightsCard
+          forgeScore={score}
+          confidence={conf}
+          trust={trustData}
+          stats={{
+            verifiedDeliveries: stats.verifiedDeliveries,
+            totalDeliveries: stats.totalDeliveries,
+            completionRate: stats.completionRate,
+            totalTeams: stats.totalTeams,
+          }}
+          skills={skillDims}
+          hasDeliveries={stats.totalDeliveries > 0}
+          hasGithub={!!b.github_username}
+        />
+      </div>
+
+      <div className="flex justify-center">
+        <ScoreExplainerSheet />
       </div>
 
       <DeliveriesList deliveries={deliveries} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <ReliabilityPanel stats={stats} />
-        <div className="space-y-4">
-          <ForgeScoreImprove
-            scores={{
-              forge_score: hasBuilderScore ? b.forge_score : (forgeScore?.score ?? 0),
-              confidence_score: hasBuilderScore ? b.confidence_score : (forgeScore?.confidence ?? 0),
-              delivery_success_score: hasBuilderScore ? b.delivery_success_score : 0,
-              reliability_score: hasBuilderScore ? b.reliability_score : 0,
-              delivery_quality_score: hasBuilderScore ? b.delivery_quality_score : 0,
-              consistency_score: hasBuilderScore ? b.consistency_score : 0,
-            }}
-          />
-          <InsightsPanel builder={builder} deliveries={deliveries} stats={stats} />
-        </div>
+        <InsightsPanel builder={builder} deliveries={deliveries} stats={stats} />
       </div>
     </div>
   );

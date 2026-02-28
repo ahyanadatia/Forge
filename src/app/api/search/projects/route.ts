@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   const { prompt, ...directFilters } = parsed.data;
   const promptFilters = prompt ? parseProjectPrompt(prompt) : {};
-  const filters = { ...promptFilters, ...Object.fromEntries(
+  const filters: Record<string, any> = { ...promptFilters, ...Object.fromEntries(
     Object.entries(directFilters).filter(([, v]) => v !== undefined)
   ) };
 
