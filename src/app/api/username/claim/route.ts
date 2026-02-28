@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       .from("builders")
       .select("username")
       .eq("id", user.id)
-      .single();
+      .single() as { data: any; error: any };
 
     const builder = await setUsername(
       supabase,

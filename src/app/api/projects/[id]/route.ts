@@ -38,7 +38,7 @@ export async function PATCH(
     .from("projects")
     .select("owner_id")
     .eq("id", params.id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!project || project.owner_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
