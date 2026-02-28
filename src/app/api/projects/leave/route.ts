@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     .eq("team_id", team_id)
     .eq("builder_id", user.id)
     .is("left_at", null)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!membership) {
     return NextResponse.json({ error: "You are not a member of this team" }, { status: 404 });
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       .from("teams")
       .select("project_id")
       .eq("id", team_id)
-      .single();
+      .single() as { data: any; error: any };
 
     if (team) {
       await supabase.from("activity_events").insert({

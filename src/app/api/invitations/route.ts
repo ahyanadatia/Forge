@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     .from("projects")
     .select("owner_id")
     .eq("id", parsed.data.project_id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!project || project.owner_id !== user.id) {
     return NextResponse.json({ error: "Only project owners can send invites" }, { status: 403 });
