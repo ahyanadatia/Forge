@@ -332,12 +332,39 @@ export interface Invitation {
   expires_at: string;
   created_at: string;
   updated_at: string;
+  accepted_at: string | null;
+  comp_type: CompType | null;
+  comp_currency: string | null;
+  comp_amount_min: number | null;
+  comp_amount_max: number | null;
+  comp_equity_range: string | null;
+  comp_terms: string | null;
   project?: Project;
   sender?: Builder;
   builder?: Builder;
 }
 
-export type InvitationStatus = "pending" | "accepted" | "declined" | "expired" | "withdrawn";
+export type InvitationStatus = "pending" | "accepted" | "declined" | "expired" | "withdrawn" | "revoked";
+
+// ─── Project Roles & Compensation ────────────────────────────────────────────
+
+export type CompType = "unpaid" | "hourly" | "fixed" | "equity" | "prize_split" | "tbd";
+
+export interface ProjectRole {
+  id: string;
+  project_id: string;
+  role_name: string;
+  seats_total: number;
+  comp_type: CompType;
+  comp_currency: string | null;
+  comp_amount_min: number | null;
+  comp_amount_max: number | null;
+  comp_equity_range: string | null;
+  comp_terms: string | null;
+  created_at: string;
+}
+
+export type MemberSource = "invite" | "application" | "owner" | "manual";
 
 // ─── Messaging ───────────────────────────────────────────────────────────────
 

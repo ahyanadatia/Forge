@@ -8,6 +8,12 @@ const sendSchema = z.object({
   builder_id: z.string().uuid(),
   role: z.string().max(120).optional(),
   message: z.string().max(2000).optional(),
+  comp_type: z.enum(["unpaid", "hourly", "fixed", "equity", "prize_split", "tbd"]).optional(),
+  comp_currency: z.string().max(10).optional(),
+  comp_amount_min: z.number().min(0).optional(),
+  comp_amount_max: z.number().min(0).optional(),
+  comp_equity_range: z.string().max(100).optional(),
+  comp_terms: z.string().max(2000).optional(),
 });
 
 export async function POST(request: Request) {

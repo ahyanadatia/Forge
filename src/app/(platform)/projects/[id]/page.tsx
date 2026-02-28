@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/services/projects";
 import { getProjectApplications } from "@/services/applications";
 import { getProjectInvitations } from "@/services/invitations";
+import { getProjectRoleSeatCounts } from "@/services/membership";
 import { computeProjectLevel } from "@/lib/matching/project-level";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 
@@ -78,6 +79,27 @@ export default async function ProjectPage({ params }: Props) {
     has_delivery_activity: (deliveriesData?.length ?? 0) > 0,
   });
 
+  // Role seat counts
+  let roleSeatCounts: { role: string; filled: number; total: number }[] = [];
+  try {
+    roleSeatCounts = await getProjectRoleSeatCounts(supabase, params.id);
+  } catch { /* */ }
+
+  // Enrich with compensation data
+  const { data: roleRows } = await (supabase as any)
+    .from("project_roles")
+    .select("role_name, comp_type, comp_currency, comp_amount_min, comp_amount_max, comp_equity_range")
+    .eq("project_id", params.id);
+
+  const roleCompMap: Record<string, any> = {};
+  for (const r of (roleRows ?? [])) {
+    roleCompMap[r.role_name] = r;
+  }
+  const enrichedRoleSeatCounts = roleSeatCounts.map((rc) => ({
+    ...rc,
+    ...(roleCompMap[rc.role] ?? {}),
+  }));
+
   // Activity events
   const { data: activityData } = await supabase
     .from("activity_events")
@@ -99,6 +121,7 @@ export default async function ProjectPage({ params }: Props) {
       applications={applications}
       projectLevel={projectLevel}
       activity={activityData ?? []}
+      roleSeatCounts={enrichedRoleSeatCounts}
     />
   );
 }
