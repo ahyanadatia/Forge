@@ -59,7 +59,7 @@ export default async function InvitePage({ params }: Props) {
     .from("teams")
     .select("team_members(*, builder:builders(id, full_name, first_name, last_name, display_name, avatar_url, username, forge_score))")
     .eq("project_id", project.id)
-    .single();
+    .single() as { data: any; error: any };
 
   const activeMembers = (teamData?.team_members ?? []).filter((m: any) => !m.left_at);
   const teamTarget = project.team_size_target ?? project.team_size;

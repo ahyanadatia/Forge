@@ -81,11 +81,11 @@ export async function POST(request: Request) {
     .from("teams")
     .select("project_id, projects(team_size_target, team_size, status)")
     .eq("id", team_id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (team?.projects) {
-    const target = (team.projects as any).team_size_target ?? (team.projects as any).team_size;
-    if ((team.projects as any).status === "full" && (activeMembers ?? 0) < target) {
+    const target = team.projects.team_size_target ?? team.projects.team_size;
+    if (team.projects.status === "full" && (activeMembers ?? 0) < target) {
       await supabase.from("projects").update({ status: "open" }).eq("id", team.project_id);
     }
   }

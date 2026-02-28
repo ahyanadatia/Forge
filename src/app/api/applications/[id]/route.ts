@@ -33,13 +33,13 @@ export async function PATCH(
     .from("applications")
     .select("*, projects(owner_id)")
     .eq("id", params.id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!application) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const isProjectOwner = (application.projects as any)?.owner_id === user.id;
+  const isProjectOwner = application.projects?.owner_id === user.id;
   const isApplicant = application.builder_id === user.id;
 
   if (parsed.data.status === "withdrawn" && !isApplicant) {
