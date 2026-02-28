@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import Image from "next/image";
+import { Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
@@ -25,8 +25,8 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg">
-            <Image src="/logo.png" alt="Forge" width={48} height={48} className="h-12 w-auto" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+            <Hammer className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-xl">Sign in to Forge</CardTitle>
           <CardDescription>
