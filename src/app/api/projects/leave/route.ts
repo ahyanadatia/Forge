@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   // Mark as left
-  const { error: updateError } = await supabase
+  const { error: updateError } = await (supabase as any)
     .from("team_members")
     .update({ left_at: new Date().toISOString(), leave_reason: reason })
     .eq("id", membership.id);
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // Check if team size dropped - potentially reopen the project
-  const { count: activeMembers } = await supabase
+  const { count: activeMembers } = await (supabase as any)
     .from("team_members")
     .select("id", { count: "exact", head: true })
     .eq("team_id", team_id)
