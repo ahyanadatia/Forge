@@ -47,12 +47,12 @@ export default async function InvitePage({ params }: Props) {
     `)
     .eq("id", params.id)
     .eq("builder_id", user.id)
-    .single();
+    .single() as { data: any; error: any };
 
   if (!invitation) notFound();
 
-  const project = invitation.project as any;
-  const sender = invitation.sender as any;
+  const project = invitation.project;
+  const sender = invitation.sender;
 
   // Fetch team members
   const { data: teamData } = await supabase
