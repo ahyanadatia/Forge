@@ -50,10 +50,10 @@ export function EditProjectPanel({ project, open, onClose }: Props) {
           hours_per_week: hoursPerWeek ? parseInt(hoursPerWeek) : undefined,
           team_size: teamSize ? parseInt(teamSize) : undefined,
           team_size_target: teamSize ? parseInt(teamSize) : undefined,
-          required_skills: skills.split(",").map((s) => s.trim()).filter(Boolean),
-          tags: tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
+          required_skills: skills.split(",").map((s: string) => s.trim()).filter(Boolean),
+          tags: tags.split(",").map((t: string) => t.trim().toLowerCase()).filter(Boolean),
           roles_needed: roles,
-          goals: goals.split("\n").map((g) => g.trim()).filter(Boolean),
+          goals: goals.split("\n").map((g: string) => g.trim()).filter(Boolean),
         }),
       });
       onClose();

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   LayoutDashboard,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { getBuilder } from "@/services/builders";
 import { getDisplayName, getInitials } from "@/lib/profile";
+import { LiveUsersIndicator } from "@/components/nav/live-users-indicator";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -99,9 +101,20 @@ export function Header() {
           </nav>
         )}
 
-        <div className="ml-auto flex items-center space-x-2">
+        <div className="ml-auto flex items-center space-x-3">
           {user ? (
             <>
+              <LiveUsersIndicator />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                data-tour="matches"
+                onClick={() => (window as any).__startForgeTour?.()}
+                title="Take a tour"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
               <Link href={`/profile/${user.id}`}>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Avatar className="h-7 w-7">

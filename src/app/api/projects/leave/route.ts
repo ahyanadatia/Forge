@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       .single() as { data: any; error: any };
 
     if (team) {
-      await supabase.from("activity_events").insert({
+      await (supabase as any).from("activity_events").insert({
         team_id,
         actor_id: user.id,
         event_type: "member_left",
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   if (team?.projects) {
     const target = team.projects.team_size_target ?? team.projects.team_size;
     if (team.projects.status === "full" && (activeMembers ?? 0) < target) {
-      await supabase.from("projects").update({ status: "open" }).eq("id", team.project_id);
+      await (supabase as any).from("projects").update({ status: "open" }).eq("id", team.project_id);
     }
   }
 
