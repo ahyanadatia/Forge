@@ -11,11 +11,16 @@ export const metadata: Metadata = {
   title: "Forge — Execution Identity for Builders",
   description:
     "The trusted execution record for builders. Demonstrate what you actually deliver.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title: "Forge — Execution Identity for Builders",
     description:
       "The trusted execution record for builders. Demonstrate what you actually deliver.",
     type: "website",
+    images: [{ url: "/logo.png" }],
   },
 };
 

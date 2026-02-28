@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Hammer,
   Search,
   FolderKanban,
   Users,
   MessageSquare,
   LayoutDashboard,
-  User,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,7 +71,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <Link href="/" className="mr-8 flex items-center space-x-2">
-          <Hammer className="h-5 w-5" />
+          <Image src="/logo.png" alt="Forge" width={24} height={24} className="h-6 w-auto" />
           <span className="text-lg font-semibold tracking-tight">Forge</span>
         </Link>
 
