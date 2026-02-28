@@ -19,6 +19,14 @@ export async function getProjects(
   params?: {
     status?: string;
     skills?: string[];
+    category?: string;
+    stage?: string;
+    tags?: string[];
+    rolesNeeded?: string[];
+    minHoursPerWeek?: number;
+    maxHoursPerWeek?: number;
+    maxTimelineWeeks?: number;
+    ftsQuery?: string;
     page?: number;
     pageSize?: number;
   }
@@ -28,14 +36,37 @@ export async function getProjects(
 
   let query = client
     .from("projects")
-    .select("*, builders!projects_owner_id_fkey(*)", { count: "exact" });
+    .select("*, builders!projects_owner_id_fkey(id, full_name, first_name, last_name, display_name, avatar_url, username, forge_score), forge_scores!inner(score, effective_score, confidence)", { count: "exact" });
 
   if (params?.status) {
     query = query.eq("status", params.status);
   }
-
+  if (params?.category) {
+    query = query.eq("category", params.category);
+  }
+  if (params?.stage) {
+    query = query.eq("stage", params.stage);
+  }
   if (params?.skills?.length) {
     query = query.overlaps("required_skills", params.skills);
+  }
+  if (params?.tags?.length) {
+    query = query.overlaps("tags", params.tags);
+  }
+  if (params?.rolesNeeded?.length) {
+    query = query.overlaps("roles_needed", params.rolesNeeded);
+  }
+  if (params?.minHoursPerWeek) {
+    query = query.gte("hours_per_week", params.minHoursPerWeek);
+  }
+  if (params?.maxHoursPerWeek) {
+    query = query.lte("hours_per_week", params.maxHoursPerWeek);
+  }
+  if (params?.maxTimelineWeeks) {
+    query = query.lte("timeline_weeks", params.maxTimelineWeeks);
+  }
+  if (params?.ftsQuery) {
+    query = query.textSearch("search_vector", params.ftsQuery, { type: "websearch" });
   }
 
   query = query
@@ -43,7 +74,21 @@ export async function getProjects(
     .range(offset, offset + pageSize - 1);
 
   const { data, error, count } = await query;
-  if (error) throw error;
+  if (error) {
+    // If FTS/inner join fails (e.g. forge_scores missing), fall back without inner join
+    const fallback = client
+      .from("projects")
+      .select("*, builders!projects_owner_id_fkey(id, full_name, first_name, last_name, display_name, avatar_url, username)", { count: "exact" });
+
+    if (params?.status) fallback.eq("status", params.status);
+    const fb = await fallback.order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    return {
+      projects: (fb.data ?? []) as unknown as (Project & { builders: any })[],
+      total: fb.count ?? 0,
+      page,
+      pageSize,
+    };
+  }
 
   return {
     projects: data as unknown as (Project & { builders: any })[],
@@ -60,15 +105,24 @@ export async function createProject(
     title: string;
     description: string;
     goals?: string[];
-    timeline: string;
-    hours_per_week: number;
+    timeline?: string;
+    hours_per_week?: number;
     required_skills?: string[];
     team_size?: number;
+    status?: string;
+    category?: string;
+    stage?: string;
+    tags?: string[];
+    roles_needed?: string[];
+    timeline_weeks?: number;
+    hours_per_week_min?: number;
+    hours_per_week_max?: number;
+    team_size_target?: number;
   }
 ) {
   const { data, error } = await client
     .from("projects")
-    .insert(project)
+    .insert({ status: "draft", ...project })
     .select()
     .single();
 
@@ -88,6 +142,14 @@ export async function updateProject(
     required_skills?: string[];
     team_size?: number;
     status?: string;
+    category?: string;
+    stage?: string;
+    tags?: string[];
+    roles_needed?: string[];
+    timeline_weeks?: number;
+    hours_per_week_min?: number;
+    hours_per_week_max?: number;
+    team_size_target?: number;
   }
 ) {
   const { data, error } = await client

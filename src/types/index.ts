@@ -3,6 +3,7 @@
 export interface Builder {
   id: string;
   email: string;
+  username: string | null;
   full_name: string;
   first_name: string;
   middle_names: string | null;
@@ -21,6 +22,19 @@ export interface Builder {
   commitment_preferences: string | null;
   website_url: string | null;
   linkedin_url: string | null;
+  self_backend: number;
+  self_frontend: number;
+  self_ml: number;
+  self_systems: number;
+  self_devops: number;
+  ai_backend: number | null;
+  ai_frontend: number | null;
+  ai_ml: number | null;
+  ai_systems: number | null;
+  ai_devops: number | null;
+  skill_confidence: number;
+  skills_last_analyzed: string | null;
+  skill_evidence: SkillEvidence | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +52,26 @@ export interface BuilderSkills {
   systems_design: number;
   devops: number;
 }
+
+export interface SkillScores {
+  backend: number;
+  frontend: number;
+  ml: number;
+  systems: number;
+  devops: number;
+}
+
+export interface SkillEvidence {
+  backend: string[];
+  frontend: string[];
+  ml: string[];
+  systems: string[];
+  devops: string[];
+  github_repos_analyzed: number;
+  deliveries_analyzed: number;
+}
+
+export type SkillConfidenceLevel = "high" | "medium" | "low" | "none";
 
 // ─── Delivery ────────────────────────────────────────────────────────────────
 
@@ -118,6 +152,14 @@ export interface Project {
   required_skills: string[];
   team_size: number;
   status: ProjectStatus;
+  category: ProjectCategory | null;
+  stage: ProjectStage | null;
+  tags: string[];
+  roles_needed: string[];
+  timeline_weeks: number | null;
+  hours_per_week_min: number | null;
+  hours_per_week_max: number | null;
+  team_size_target: number | null;
   created_at: string;
   updated_at: string;
   owner?: Builder;
@@ -125,7 +167,33 @@ export interface Project {
   team?: Team;
 }
 
-export type ProjectStatus = "open" | "in_progress" | "completed" | "cancelled";
+export type ProjectStatus = "draft" | "open" | "full" | "active" | "completed" | "archived";
+
+export type ProjectCategory =
+  | "saas"
+  | "marketplace"
+  | "developer_tool"
+  | "ai_ml"
+  | "fintech"
+  | "healthtech"
+  | "edtech"
+  | "social"
+  | "ecommerce"
+  | "data_analytics"
+  | "devops_infra"
+  | "mobile_app"
+  | "web_app"
+  | "api_service"
+  | "open_source"
+  | "other";
+
+export type ProjectStage =
+  | "idea"
+  | "prototype"
+  | "mvp"
+  | "beta"
+  | "launched"
+  | "scaling";
 
 // ─── Application ─────────────────────────────────────────────────────────────
 
@@ -167,6 +235,8 @@ export interface TeamMember {
   builder_id: string;
   role: string;
   joined_at: string;
+  left_at: string | null;
+  leave_reason: string | null;
   builder?: Builder;
 }
 
@@ -248,6 +318,26 @@ export interface MatchResult {
   commitment_fit: number;
   delivery_history_fit: number;
 }
+
+// ─── Invitation ─────────────────────────────────────────────────────────────
+
+export interface Invitation {
+  id: string;
+  project_id: string;
+  sender_id: string;
+  builder_id: string;
+  role: string | null;
+  message: string | null;
+  status: InvitationStatus;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  project?: Project;
+  sender?: Builder;
+  builder?: Builder;
+}
+
+export type InvitationStatus = "pending" | "accepted" | "declined" | "expired" | "withdrawn";
 
 // ─── Messaging ───────────────────────────────────────────────────────────────
 

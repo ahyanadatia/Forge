@@ -24,6 +24,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { formatRelativeDate } from "@/lib/utils";
+import { getScoreBand } from "@/lib/forge-score";
 
 export const dynamic = 'force-dynamic';
 
@@ -83,11 +84,13 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Forge Score"
-          value={forgeScore?.score ?? "—"}
+          value={(builder as any).forge_score || forgeScore?.score || "—"}
           sublabel={
-            forgeScore
-              ? `Confidence: ${forgeScore.confidence}%`
-              : "Not yet computed"
+            (builder as any).forge_score > 0
+              ? `${getScoreBand((builder as any).forge_score)} · ${(builder as any).confidence_score ?? 0}% confidence`
+              : forgeScore
+                ? `Confidence: ${forgeScore.confidence}%`
+                : "Not yet computed"
           }
           icon={ShieldCheck}
         />

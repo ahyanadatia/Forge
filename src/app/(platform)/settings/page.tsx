@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,12 +12,15 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { getBuilder, updateBuilder } from "@/services/builders";
 import { profileSchema } from "@/lib/validations/profile";
 import { AvatarUpload } from "@/components/profile/avatar-upload";
 import { getInitials, buildFullName } from "@/lib/profile";
+import { getScoreBand, getConfidenceLabel } from "@/lib/forge-score";
+import { formatRelativeDate } from "@/lib/utils";
 import type { Builder, BuilderAvailability } from "@/types";
 
 const availabilityOptions: { value: BuilderAvailability; label: string }[] = [
@@ -34,6 +38,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcError, setRecalcError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -89,13 +95,6 @@ export default function SettingsPage() {
         availability: v.availability,
         website_url: v.website_url,
         linkedin_url: v.linkedin_url,
-        skills: {
-          backend: v.skill_backend,
-          frontend: v.skill_frontend,
-          ml: v.skill_ml,
-          systems_design: v.skill_systems_design,
-          devops: v.skill_devops,
-        },
       });
       setBuilder(updated);
       setSaved(true);
@@ -105,6 +104,30 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
+  const handleRecalculate = useCallback(async () => {
+    if (!builder) return;
+    setRecalculating(true);
+    setRecalcError(null);
+    try {
+      const res = await fetch("/api/scoring/compute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ builder_id: builder.id }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setRecalcError(body.error ?? "Recalculation failed.");
+        setRecalculating(false);
+        return;
+      }
+      const b = await getBuilder(supabase, builder.id);
+      setBuilder(b);
+    } catch {
+      setRecalcError("Recalculation failed. Please try again.");
+    }
+    setRecalculating(false);
+  }, [builder, supabase]);
+
   if (!builder) {
     return (
       <div className="container max-w-2xl py-8">
@@ -112,6 +135,8 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const b = builder as any;
 
   return (
     <div className="container max-w-2xl py-8 space-y-6">
@@ -152,6 +177,61 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <Input value={email} disabled className="max-w-sm bg-muted" />
+        </CardContent>
+      </Card>
+
+      {/* Forge Score */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Forge Score</CardTitle>
+          </div>
+          <CardDescription>
+            Your score is computed from verified deliveries, project outcomes,
+            and activity. It cannot be edited manually.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tabular-nums">
+                {b.forge_score || 0}
+              </span>
+              <span className="text-sm text-muted-foreground">/1000</span>
+            </div>
+            {b.forge_score > 0 && (
+              <>
+                <Badge variant="secondary" className="text-xs">
+                  {getScoreBand(b.forge_score)}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  {getConfidenceLabel(b.confidence_score || 0)} confidence
+                </Badge>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleRecalculate}
+              disabled={recalculating}
+              variant="outline"
+              size="sm"
+            >
+              {recalculating && (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              )}
+              {recalculating ? "Recalculating..." : "Recalculate Score"}
+            </Button>
+            {b.last_scored_at && (
+              <span className="text-xs text-muted-foreground">
+                Last updated {formatRelativeDate(b.last_scored_at)}
+              </span>
+            )}
+          </div>
+          {recalcError && (
+            <p className="text-sm text-destructive">{recalcError}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -306,39 +386,6 @@ export default function SettingsPage() {
                 placeholder="https://linkedin.com/in/..."
                 error={errors.linkedin_url}
               />
-            </div>
-
-            <Separator />
-
-            {/* Skills */}
-            <div>
-              <p className="text-sm font-medium mb-3">
-                Skills (0–100 self-assessment)
-              </p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { key: "backend", label: "Backend" },
-                  { key: "frontend", label: "Frontend" },
-                  { key: "ml", label: "ML / AI" },
-                  { key: "systems_design", label: "Systems Design" },
-                  { key: "devops", label: "DevOps" },
-                ].map((skill) => (
-                  <div key={skill.key} className="space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      {skill.label}
-                    </label>
-                    <Input
-                      name={`skill_${skill.key}`}
-                      type="number"
-                      min={0}
-                      max={100}
-                      defaultValue={
-                        (builder.skills as any)?.[skill.key] ?? 0
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="flex items-center gap-3">
