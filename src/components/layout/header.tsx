@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getBuilder } from "@/services/builders";
 import { getDisplayName, getInitials } from "@/lib/profile";
 import { LiveUsersIndicator } from "@/components/nav/live-users-indicator";
+import { InviteBadge } from "@/components/nav/invite-badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -105,6 +106,7 @@ export function Header() {
           {user ? (
             <>
               <LiveUsersIndicator />
+              <InviteBadge />
               <Button
                 variant="ghost"
                 size="icon"

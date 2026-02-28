@@ -12,19 +12,68 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { createProject } from "@/services/projects";
 import { PROJECT_CATEGORIES, COMMON_ROLES } from "@/lib/project-constants";
+import type { CompType } from "@/types";
+
+const COMP_OPTIONS: { value: CompType; label: string }[] = [
+  { value: "tbd", label: "TBD" },
+  { value: "unpaid", label: "Unpaid" },
+  { value: "hourly", label: "Hourly" },
+  { value: "fixed", label: "Fixed" },
+  { value: "equity", label: "Equity" },
+  { value: "prize_split", label: "Prize Split" },
+];
+
+interface RoleConfig {
+  role_name: string;
+  seats: number;
+  comp_type: CompType;
+  comp_amount_min: string;
+  comp_amount_max: string;
+  comp_currency: string;
+}
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [roleConfigs, setRoleConfigs] = useState<Record<string, RoleConfig>>({});
+  const [joinAsOwner, setJoinAsOwner] = useState(true);
 
   const toggleRole = (role: string) => {
-    setSelectedRoles((prev) =>
-      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
-    );
+    setSelectedRoles((prev) => {
+      if (prev.includes(role)) {
+        const next = prev.filter((r) => r !== role);
+        setRoleConfigs((rc) => {
+          const copy = { ...rc };
+          delete copy[role];
+          return copy;
+        });
+        return next;
+      }
+      setRoleConfigs((rc) => ({
+        ...rc,
+        [role]: {
+          role_name: role,
+          seats: 1,
+          comp_type: "tbd",
+          comp_amount_min: "",
+          comp_amount_max: "",
+          comp_currency: "USD",
+        },
+      }));
+      return [...prev, role];
+    });
+  };
+
+  const updateRoleConfig = (role: string, field: string, value: string | number) => {
+    setRoleConfigs((prev) => ({
+      ...prev,
+      [role]: { ...prev[role], [field]: value },
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,7 +90,14 @@ export default function NewProjectPage() {
 
     try {
       const category = form.get("category") as string;
-      const teamSize = parseInt(form.get("team_size") as string) || 4;
+      const totalSeats = selectedRoles.reduce(
+        (sum, r) => sum + (roleConfigs[r]?.seats ?? 1),
+        0
+      );
+      const teamSize = Math.max(
+        totalSeats + (joinAsOwner ? 1 : 0),
+        parseInt(form.get("team_size") as string) || 4
+      );
 
       const project = await createProject(supabase, {
         owner_id: user.id,
@@ -53,6 +109,38 @@ export default function NewProjectPage() {
         team_size_target: teamSize,
         status: "draft",
       });
+
+      // Create role slots with compensation
+      for (const role of selectedRoles) {
+        const config = roleConfigs[role];
+        if (!config) continue;
+        await fetch(`/api/projects/${project.id}/roles`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role_name: config.role_name,
+            seats_total: config.seats,
+            comp_type: config.comp_type,
+            comp_currency: config.comp_currency || undefined,
+            comp_amount_min: config.comp_amount_min
+              ? parseFloat(config.comp_amount_min)
+              : undefined,
+            comp_amount_max: config.comp_amount_max
+              ? parseFloat(config.comp_amount_max)
+              : undefined,
+          }),
+        });
+      }
+
+      // Owner auto-join
+      if (joinAsOwner) {
+        await fetch("/api/projects/join-owner", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project_id: project.id }),
+        });
+      }
+
       router.push(`/projects/${project.id}`);
     } catch {
       setLoading(false);
@@ -107,11 +195,14 @@ export default function NewProjectPage() {
               >
                 <option value="">Select category...</option>
                 {PROJECT_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
                 ))}
               </select>
             </div>
 
+            {/* Roles */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Roles needed</label>
               <div className="flex flex-wrap gap-2">
@@ -122,7 +213,9 @@ export default function NewProjectPage() {
                     onClick={() => toggleRole(role)}
                   >
                     <Badge
-                      variant={selectedRoles.includes(role) ? "default" : "outline"}
+                      variant={
+                        selectedRoles.includes(role) ? "default" : "outline"
+                      }
                       className="cursor-pointer"
                     >
                       {role}
@@ -131,6 +224,116 @@ export default function NewProjectPage() {
                 ))}
               </div>
             </div>
+
+            {/* Role configurations */}
+            {selectedRoles.length > 0 && (
+              <div className="space-y-3">
+                <Separator />
+                <p className="text-sm font-medium">
+                  Role details & compensation
+                </p>
+                {selectedRoles.map((role) => {
+                  const config = roleConfigs[role];
+                  if (!config) return null;
+                  return (
+                    <div
+                      key={role}
+                      className="rounded-md border p-3 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{role}</span>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-muted-foreground">
+                            Seats
+                          </label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={config.seats}
+                            onChange={(e) =>
+                              updateRoleConfig(
+                                role,
+                                "seats",
+                                parseInt(e.target.value) || 1
+                              )
+                            }
+                            className="w-16 h-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">
+                            Compensation
+                          </label>
+                          <select
+                            value={config.comp_type}
+                            onChange={(e) =>
+                              updateRoleConfig(
+                                role,
+                                "comp_type",
+                                e.target.value
+                              )
+                            }
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                          >
+                            {COMP_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {(config.comp_type === "hourly" ||
+                          config.comp_type === "fixed") && (
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground">
+                                Min
+                              </label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={config.comp_amount_min}
+                                onChange={(e) =>
+                                  updateRoleConfig(
+                                    role,
+                                    "comp_amount_min",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground">
+                                Max
+                              </label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={config.comp_amount_max}
+                                onChange={(e) =>
+                                  updateRoleConfig(
+                                    role,
+                                    "comp_amount_max",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="team_size">
@@ -144,6 +347,31 @@ export default function NewProjectPage() {
                 max={20}
                 defaultValue={4}
               />
+            </div>
+
+            {/* Owner join toggle */}
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <p className="text-sm font-medium">Join as Owner</p>
+                <p className="text-xs text-muted-foreground">
+                  Count yourself as a team member
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={joinAsOwner}
+                onClick={() => setJoinAsOwner((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  joinAsOwner ? "bg-primary" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    joinAsOwner ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
 
             <Button type="submit" disabled={loading} className="w-full">

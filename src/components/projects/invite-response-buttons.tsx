@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface Props {
   invitationId: string;
@@ -12,27 +12,57 @@ interface Props {
   projectId: string;
 }
 
-export function InviteResponseButtons({ invitationId, status, projectId }: Props) {
+export function InviteResponseButtons({
+  invitationId,
+  status,
+  projectId,
+}: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [responded, setResponded] = useState(status !== "pending");
+  const [error, setError] = useState<string | null>(null);
 
-  const respond = async (action: "accepted" | "declined") => {
+  const handleAccept = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/invitations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invitation_id: invitationId, status: action }),
+      const res = await fetch(`/api/invites/${invitationId}/accept`, {
+        method: "POST",
       });
+      const data = await res.json();
       if (res.ok) {
         setResponded(true);
-        if (action === "accepted") {
-          router.push(`/projects/${projectId}`);
+        router.push(`/projects/${data.project_id ?? projectId}`);
+      } else {
+        if (data.code === "CAPACITY_FULL") {
+          setError(
+            `Team is full (${data.current}/${data.max}). No seats available.`
+          );
+        } else if (data.code === "EXPIRED") {
+          setError("This invitation has expired.");
+        } else {
+          setError(data.error ?? "Failed to accept invitation.");
         }
       }
     } catch {
-      // Silent
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/invites/${invitationId}/decline`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setResponded(true);
+      }
+    } catch {
+      setError("Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -58,13 +88,34 @@ export function InviteResponseButtons({ invitationId, status, projectId }: Props
   }
 
   return (
-    <div className="flex gap-3">
-      <Button onClick={() => respond("accepted")} disabled={loading} className="flex-1" size="lg">
-        {loading ? "..." : "Accept"}
-      </Button>
-      <Button onClick={() => respond("declined")} disabled={loading} variant="outline" className="flex-1" size="lg">
-        Decline
-      </Button>
+    <div className="space-y-3">
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="flex items-center gap-2 p-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {error}
+          </CardContent>
+        </Card>
+      )}
+      <div className="flex gap-3">
+        <Button
+          onClick={handleAccept}
+          disabled={loading}
+          className="flex-1"
+          size="lg"
+        >
+          {loading ? "Joining..." : "Accept & Join"}
+        </Button>
+        <Button
+          onClick={handleDecline}
+          disabled={loading}
+          variant="outline"
+          className="flex-1"
+          size="lg"
+        >
+          Decline
+        </Button>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Clock, Users as UsersIcon, Target, Calendar } from "lucide-react";
+import { Clock, Users as UsersIcon, Target, Calendar, DollarSign } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { getCategoryLabel, getStageLabel } from "@/lib/project-constants";
 import { ProjectLevelChip } from "@/components/projects/project-level-chip";
@@ -17,7 +17,20 @@ import { InviteModal } from "@/components/projects/invite-modal";
 import { EditProjectPanel } from "@/components/projects/edit-project-panel";
 import { LeaveProjectModal } from "@/components/projects/leave-project-modal";
 import { ApplyButton } from "@/components/projects/apply-button";
+import { formatCompRange } from "@/lib/compensation";
 import type { ProjectLevelOutput } from "@/lib/matching/project-level";
+import type { CompType } from "@/types";
+
+interface RoleSeatCount {
+  role: string;
+  filled: number;
+  total: number;
+  comp_type?: CompType;
+  comp_currency?: string;
+  comp_amount_min?: number;
+  comp_amount_max?: number;
+  comp_equity_range?: string;
+}
 
 interface Props {
   project: any;
@@ -31,6 +44,7 @@ interface Props {
   applications: any[];
   projectLevel: ProjectLevelOutput;
   activity: any[];
+  roleSeatCounts?: RoleSeatCount[];
 }
 
 const STATUS_LABELS: Record<string, { label: string; variant: string }> = {
@@ -62,6 +76,7 @@ export function ProjectWorkspace({
   applications,
   projectLevel,
   activity,
+  roleSeatCounts,
 }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -195,17 +210,54 @@ export function ProjectWorkspace({
 
       {/* ─── CAPACITY ─── */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <UsersIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{memberCount} / {teamTarget} Members</span>
+              <span className="text-sm font-medium">
+                Team {memberCount} / {teamTarget}
+              </span>
             </div>
             {openSpots > 0 && (
-              <span className="text-xs text-muted-foreground">{openSpots} open spot{openSpots > 1 ? "s" : ""}</span>
+              <span className="text-xs text-muted-foreground">
+                {openSpots} open spot{openSpots > 1 ? "s" : ""}
+              </span>
             )}
           </div>
           <Progress value={capacityPercent} className="h-2" />
+
+          {/* Role-based seat breakdown */}
+          {roleSeatCounts && roleSeatCounts.length > 0 && (
+            <div className="grid gap-2 pt-1">
+              {roleSeatCounts.map((r) => {
+                const pct = r.total > 0 ? Math.round((r.filled / r.total) * 100) : 0;
+                const compLabel = formatCompRange(
+                  r.comp_type as CompType,
+                  r.comp_currency,
+                  r.comp_amount_min,
+                  r.comp_amount_max,
+                  r.comp_equity_range
+                );
+                return (
+                  <div key={r.role} className="flex items-center gap-3">
+                    <div className="flex items-center justify-between flex-1 min-w-0">
+                      <span className="text-xs font-medium truncate">{r.role}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                        {r.filled}/{r.total}
+                      </span>
+                    </div>
+                    <Progress value={pct} className="h-1.5 w-20 shrink-0" />
+                    {compLabel !== "TBD" && (
+                      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
+                        <DollarSign className="h-2.5 w-2.5" />
+                        {compLabel}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

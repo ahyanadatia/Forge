@@ -2,6 +2,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateApplicationStatus } from "@/services/applications";
+import { acceptApplicationTransaction } from "@/services/membership";
 
 const schema = z.object({
   status: z.enum(["accepted", "rejected", "withdrawn"]),
@@ -28,7 +29,6 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  // Verify: the user must own the project this application belongs to, OR be the applicant (for withdraw)
   const { data: application } = await supabase
     .from("applications")
     .select("*, projects(owner_id)")
@@ -51,6 +51,18 @@ export async function PATCH(
   }
 
   try {
+    if (parsed.data.status === "accepted") {
+      const { data, error } = await acceptApplicationTransaction(supabase, params.id, user.id);
+      if (error) {
+        const code = (data as any)?.code;
+        return NextResponse.json(
+          { error, code },
+          { status: code === "CAPACITY_FULL" ? 409 : 500 }
+        );
+      }
+      return NextResponse.json(data);
+    }
+
     const updated = await updateApplicationStatus(supabase, params.id, parsed.data.status);
     return NextResponse.json(updated);
   } catch (err: any) {
