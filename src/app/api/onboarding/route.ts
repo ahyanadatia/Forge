@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+
+const patchSchema = z.record(z.string(), z.unknown());
 
 export async function GET() {
   const supabase = await createClient();
@@ -42,7 +45,9 @@ export async function PATCH(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
+  const parsed = patchSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  const body = parsed.data;
   const allowed = ["first_login_completed", "tour_completed", "tour_step", "checklist_dismissed"];
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 

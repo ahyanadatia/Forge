@@ -7,8 +7,18 @@ import { processRecomputeJob } from "@/lib/scoring/pipeline";
  * Processes pending recompute jobs. Called by cron or internal trigger.
  * Processes up to 10 jobs per invocation.
  */
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
+
+  // Allow a scheduler that presents CRON_SECRET, or any signed-in user.
+  const secret = process.env.CRON_SECRET;
+  const viaScheduler = Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  if (!viaScheduler) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { data: jobs } = await (supabase as any)
     .from("score_recompute_queue")

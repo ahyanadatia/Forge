@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDelivery } from "@/services/deliveries";
 import { getDeliveryEvidence } from "@/services/evidence";
+import { z } from "zod";
+
+const bodySchema = z.object({ delivery_id: z.string().min(1) });
 import { runVerification } from "@/lib/verification";
 
 export async function POST(request: Request) {
@@ -14,13 +17,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { delivery_id } = await request.json();
-  if (!delivery_id) {
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "delivery_id required" },
       { status: 400 }
     );
   }
+  const { delivery_id } = parsed.data;
 
   try {
     const delivery = await getDelivery(supabase, delivery_id);

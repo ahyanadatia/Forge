@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gatherScoreInputs } from "@/services/score-data";
 import { computeForgeScoreV2 } from "@/lib/forge-score";
+import { z } from "zod";
+
+const bodySchema = z.object({ builder_id: z.string().min(1).optional() });
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -14,12 +17,9 @@ export async function POST(request: Request) {
   }
 
   let targetId = user.id;
-  try {
-    const body = await request.json().catch(() => ({}));
-    if (body.builder_id) targetId = body.builder_id;
-  } catch {
-    // Use current user
-  }
+  // An absent or malformed body means "score the signed-in user".
+  const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));
+  if (parsed.success && parsed.data.builder_id) targetId = parsed.data.builder_id;
 
   try {
     const inputs = await gatherScoreInputs(supabase, targetId);

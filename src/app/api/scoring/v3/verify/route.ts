@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runProbesForDelivery } from "@/lib/scoring/probes";
+import { z } from "zod";
+
+const bodySchema = z.object({ delivery_id: z.string().min(1) });
 
 /**
  * POST /api/scoring/v3/verify
@@ -17,16 +20,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { delivery_id: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  if (!body.delivery_id) {
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ error: "delivery_id required" }, { status: 400 });
   }
+  const body = parsed.data;
 
   // Fetch delivery + verify ownership
   const { data: delivery, error } = await (supabase as any)

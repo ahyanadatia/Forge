@@ -51,7 +51,10 @@ The score is deterministic given the evidence on record.
 A confidence value (0–100) is reported alongside, based on evidence volume, evidence diversity,
 tenure and whether any anti-gaming flag fired.
 
-An earlier formula (V2, 0–1000, `src/lib/forge-score.ts`) is still used by parts of the UI.
+**Status.** The V3 engine above is implemented, tested and exposed through `/api/scoring/v3/*`,
+but the interface does not call it yet: the score shown in the app is still computed by the
+earlier V2 formula (0–1000, `src/lib/forge-score.ts`), and nothing schedules the V3 recompute
+queue. Wiring V3 into the interface is the main piece of unfinished work.
 
 ## Matching
 
@@ -110,6 +113,7 @@ npm run dev                        # http://localhost:3000
    | `GITHUB_TOKEN` | No | Higher GitHub API rate limits for repository probes |
    | `OPENAI_API_KEY` | No | LLM skill analysis; a deterministic fallback is used without it |
    | `OPENAI_MODEL` | No | Defaults to `gpt-4o-mini` |
+   | `CRON_SECRET` | No | Lets a scheduler call the queue-processing route without a user session |
 
 ## Project layout
 
