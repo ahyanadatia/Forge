@@ -6,7 +6,6 @@ import { Send, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {

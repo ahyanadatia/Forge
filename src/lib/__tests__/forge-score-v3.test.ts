@@ -20,21 +20,18 @@
 import { describe, it, expect } from "vitest";
 import {
   computeEC,
-  computeAOI,
   computeRC,
   computeLPI,
-  computeComposite,
   mapTo3Digit,
   applyTenureGates,
   applyMovementCaps,
   applyInactivityDecay,
   computeForgeScoreV3,
-  buildDimensionInputs,
 } from "@/lib/scoring/engine";
-import { computeBCM, giniCoefficient, computeBurstiness } from "@/lib/scoring/anti-gaming";
+import { computeBCM, giniCoefficient } from "@/lib/scoring/anti-gaming";
 import { hashPayload } from "@/lib/scoring/evidence";
 import { inferStackFromDependencies } from "@/lib/scoring/probes";
-import type { ScoreEvidence, ScoringModelVersion, ModelCaps } from "@/lib/scoring/types";
+import type { ScoreEvidence, ScoringModelVersion } from "@/lib/scoring/types";
 
 // ─── Test Model ──────────────────────────────────────────────────────────
 

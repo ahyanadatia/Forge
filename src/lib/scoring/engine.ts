@@ -23,12 +23,10 @@ import type {
   V3ScoreResult,
   ModelWeights,
   ModelCaps,
-  BCMResult,
   ScoreEvidence,
   ScoringModelVersion,
 } from "./types";
 import { computeBCM } from "./anti-gaming";
-import { countEvidenceByType, getBuilderEvidence } from "./evidence";
 
 // ─── Clamping helpers ────────────────────────────────────────────────────
 
@@ -235,7 +233,7 @@ export function applyInactivityDecay(
 export function buildDimensionInputs(
   evidence: ScoreEvidence[],
   counts: Record<string, number>,
-  tenureDays: number
+  _tenureDays: number
 ): { ec: ECInput; aoi: AOIInput; rc: RCInput; lpi: LPIInput } {
   const now = Date.now();
   const SIX_MONTHS = 180 * 24 * 60 * 60 * 1000;

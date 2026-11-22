@@ -47,7 +47,7 @@ export function OnboardingOrchestrator({ userId, builder, hasDeliveries, hasProj
   const [state, setState] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [tourActive, setTourActive] = useState(false);
+  const [, setTourActive] = useState(false);
 
   useEffect(() => {
     const cached = readLocal();

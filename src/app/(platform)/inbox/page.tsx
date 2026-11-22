@@ -6,8 +6,6 @@ import Link from "next/link";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +22,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatCompRange } from "@/lib/compensation";
-import { getCategoryLabel, getStageLabel } from "@/lib/project-constants";
+import { getCategoryLabel } from "@/lib/project-constants";
 import { AcceptConfirmationModal } from "@/components/invites/accept-confirmation-modal";
 import type { CompType } from "@/types";
 

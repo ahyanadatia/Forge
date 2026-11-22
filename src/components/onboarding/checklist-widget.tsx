@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { X, Check, Circle, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export interface ChecklistItem {
   id: string;

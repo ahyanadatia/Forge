@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check:
-    name: types + tests + build
+    name: lint + types + tests + build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -24,6 +24,11 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Type-check
         run: npx tsc --noEmit

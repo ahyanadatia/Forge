@@ -17,7 +17,7 @@ interface Props {
   userId: string;
 }
 
-export function TourController({ initialState, userId }: Props) {
+export function TourController({ initialState }: Props) {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(initialState?.tour_step ?? 0);
   const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number } | null>(null);

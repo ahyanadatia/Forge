@@ -5,7 +5,7 @@
  * engine promises for any input: scores stay in range, the guard rails hold,
  * and more verified work never lowers a score.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it } from "vitest";
 import fc from "fast-check";
 import {
   computeEC,

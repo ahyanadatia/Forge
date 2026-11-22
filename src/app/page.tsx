@@ -92,7 +92,7 @@ export default function LandingPage() {
               </div>
               <h3 className="mb-2 text-lg font-semibold">Build Better Teams</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Find builders by what they've actually done. Match on verified
+                Find builders by what they&apos;ve actually done. Match on verified
                 skills, reliability, and delivery history — not resumes.
               </p>
             </div>

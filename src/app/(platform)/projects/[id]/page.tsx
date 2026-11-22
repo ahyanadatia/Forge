@@ -28,7 +28,6 @@ export default async function ProjectPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   const isOwner = user?.id === project.owner_id;
-  const isMember = false; // Will be set below
 
   // Fetch team data
   const { data: teamData } = await supabase

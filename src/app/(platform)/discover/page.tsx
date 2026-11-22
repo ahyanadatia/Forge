@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Search, SlidersHorizontal, X, Sparkles } from "lucide-react";
+import { SlidersHorizontal, X, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import { parseBuilderPrompt, parseProjectPrompt } from "@/lib/prompt-parser";
 import { PROJECT_CATEGORIES, PROJECT_STAGES, getCategoryLabel, getStageLabel } from "@/lib/project-constants";
-import type { Builder } from "@/types";
 
 const availabilityConfig: Record<string, { label: string; variant: "success" | "secondary" | "warning" | "outline" }> = {
   available: { label: "Available", variant: "success" },

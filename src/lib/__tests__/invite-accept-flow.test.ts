@@ -193,7 +193,7 @@ describe("acceptInviteTransaction", () => {
       },
     });
 
-    const { data, error } = await acceptInviteTransaction(
+    const { error } = await acceptInviteTransaction(
       supabase,
       "inv-1",
       "user-1"
@@ -271,7 +271,7 @@ describe("declineInviteTransaction", () => {
       },
     });
 
-    const { data, error } = await declineInviteTransaction(
+    const { error } = await declineInviteTransaction(
       supabase,
       "inv-1",
       "user-1"
@@ -409,7 +409,6 @@ describe("getProjectRoleSeatCounts", () => {
       { role: "Frontend Engineer" },
     ];
 
-    let callCount = 0;
     const supabase = {
       from: vi.fn((table: string) => {
         if (table === "project_roles") {

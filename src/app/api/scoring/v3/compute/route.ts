@@ -8,7 +8,7 @@ import { enqueueRecompute } from "@/lib/scoring/evidence";
  * Auth-gated, rate-limited. Only own builder_id.
  * Enqueues a recompute job rather than computing inline.
  */
-export async function POST(request: Request) {
+export async function POST() {
   const supabase = await createClient();
   const {
     data: { user },

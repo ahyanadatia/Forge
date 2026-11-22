@@ -5,11 +5,8 @@ import { getBuilderTeams } from "@/services/teams";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +31,7 @@ export default async function TeamsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Your Teams</h1>
         <p className="text-muted-foreground">
-          Teams you're part of across projects.
+          Teams you&apos;re part of across projects.
         </p>
       </div>
 
@@ -43,7 +40,7 @@ export default async function TeamsPage() {
           <CardContent className="py-12 text-center">
             <Users className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
             <p className="text-muted-foreground">
-              You're not part of any teams yet.
+              You&apos;re not part of any teams yet.
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               <Link

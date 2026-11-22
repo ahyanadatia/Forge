@@ -1,4 +1,4 @@
-import type { Builder, SkillScores, SkillConfidenceLevel } from "@/types";
+import type { Builder, SkillConfidenceLevel } from "@/types";
 
 const AI_WEIGHT = 0.6;
 const SELF_WEIGHT = 0.4;

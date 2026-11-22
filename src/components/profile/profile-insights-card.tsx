@@ -27,7 +27,6 @@ interface Props {
 
 export function ProfileInsightsCard({
   forgeScore,
-  confidence,
   trust,
   stats,
   skills,

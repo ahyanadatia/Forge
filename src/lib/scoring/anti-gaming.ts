@@ -7,7 +7,7 @@
  * Detected anomalies reduce the multiplier.
  */
 
-import type { AnomalySignals, BCMResult, ScoreEvidence } from "./types";
+import type { BCMResult, ScoreEvidence } from "./types";
 
 /**
  * Gini coefficient: measures inequality in a distribution.

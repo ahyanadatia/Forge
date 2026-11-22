@@ -10,20 +10,17 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
-  Activity,
   Target,
   Users,
   ArrowRight,
   Plus,
   ShieldCheck,
 } from "lucide-react";
-import { formatRelativeDate } from "@/lib/utils";
 import { getScoreBand } from "@/lib/forge-score";
 import { OnboardingOrchestrator } from "@/components/onboarding/onboarding-orchestrator";
 
@@ -57,7 +54,6 @@ export default async function DashboardPage() {
   ]);
 
   const forgeScore = scoreResult;
-  const pendingApps = applications.filter((a) => a.status === "pending");
 
   const { count: projectCount } = await (supabase as any)
     .from("projects")

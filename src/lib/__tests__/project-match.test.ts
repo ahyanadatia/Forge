@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   computeCompatibility,
-  type CompatibilityInput,
   type BuilderMatchProfile,
   type ProjectMatchProfile,
 } from "../matching/project-match";

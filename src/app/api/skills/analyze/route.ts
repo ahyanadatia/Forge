@@ -8,7 +8,6 @@ import {
   buildEvidenceSummary,
 } from "@/lib/skill-signals";
 import { analyzeSkillsWithAi } from "@/lib/skill-ai";
-import { finalToLegacySkills } from "@/lib/skills";
 import type { Delivery, SkillScores } from "@/types";
 
 const RATE_LIMIT_MS = 60 * 60 * 1000; // 1 hour
