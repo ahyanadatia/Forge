@@ -12,6 +12,7 @@ function makeBuilder(overrides: Partial<Builder> = {}): Builder {
   return {
     id: "1",
     email: "test@test.com",
+    username: null,
     full_name: "Test User",
     first_name: "Test",
     middle_names: null,
