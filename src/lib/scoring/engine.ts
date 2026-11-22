@@ -172,13 +172,17 @@ export function applyTenureGates(
   tenureMonths: number,
   caps: ModelCaps
 ): number {
-  if (score >= 900 && tenureMonths < caps.tier_900_min_months) {
-    return Math.min(score, 899);
+  // Apply the gates in order rather than returning at the first match: a 900+
+  // score with under tier_800_min_months of tenure must fall through both
+  // ceilings, not stop at 899.
+  let gated = score;
+  if (gated >= 900 && tenureMonths < caps.tier_900_min_months) {
+    gated = 899;
   }
-  if (score >= 800 && tenureMonths < caps.tier_800_min_months) {
-    return Math.min(score, 799);
+  if (gated >= 800 && tenureMonths < caps.tier_800_min_months) {
+    gated = 799;
   }
-  return score;
+  return gated;
 }
 
 /**

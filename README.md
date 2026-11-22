@@ -77,12 +77,14 @@ policies. Authentication is GitHub OAuth through Supabase Auth.
 ## Tests
 
 ```bash
-npm test          # 244 unit tests across 14 files (Vitest)
+npm test          # 254 tests across 15 files (Vitest), including property-based tests
 npx tsc --noEmit  # type-check
 ```
 
 The tests cover the scoring engines, matching, acceptance likelihood, the search parser, skill
-blending, the invite flow and project workflow rules. CI runs the type-check and the tests on
+blending, the invite flow and project workflow rules. Property-based tests (fast-check) assert
+the scoring invariants for arbitrary inputs: scores stay in range, movement caps and tenure
+gates hold, and more verified work never lowers a score. CI runs the type-check and the tests on
 every push and pull request.
 
 ## Run it locally
