@@ -15,12 +15,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const limit = Math.min(
-    50,
-    parseInt(request.nextUrl.searchParams.get("limit") ?? "10")
-  );
+  const requested = Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "10", 10);
+  const limit = Number.isFinite(requested) ? Math.min(50, Math.max(1, requested)) : 10;
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("score_history")
     .select("id, score_v3, previous_score, delta, breakdown, anomaly_flags, model_version, reason, computed_at")
     .eq("builder_id", user.id)
@@ -28,7 +26,8 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("history: query failed", error);
+    return NextResponse.json({ error: "Could not load score history" }, { status: 500 });
   }
 
   return NextResponse.json({ history: data ?? [] });

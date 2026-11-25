@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ADMIN_NOT_CONFIGURED, createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/scoring/pipeline";
 import { enqueueRecompute } from "@/lib/scoring/evidence";
 
 /**
  * POST /api/scoring/v3/compute
- * Auth-gated, rate-limited. Only own builder_id.
- * Enqueues a recompute job rather than computing inline.
+ * Queues a recompute of the caller's own score. Rate-limited to once every
+ * 15 minutes. The queue is system-managed, so the job is written with the
+ * service-role client after the caller is authenticated.
  */
 export async function POST() {
   const supabase = await createClient();
@@ -18,11 +20,10 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const builderId = user.id;
+  const admin = createAdminClient();
+  if (!admin) return NextResponse.json(ADMIN_NOT_CONFIGURED, { status: 503 });
 
-  // Rate limit check
-  const allowed = await checkRateLimit(supabase as any, builderId);
-  if (!allowed) {
+  if (!(await checkRateLimit(admin, user.id))) {
     return NextResponse.json(
       { error: "Rate limited. Score can be recomputed once every 15 minutes." },
       { status: 429 }
@@ -30,16 +31,10 @@ export async function POST() {
   }
 
   try {
-    await enqueueRecompute(supabase as any, builderId, "manual");
-
-    return NextResponse.json({
-      success: true,
-      message: "Score recompute queued. Check back in a moment.",
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message ?? "Failed to enqueue recompute" },
-      { status: 500 }
-    );
+    await enqueueRecompute(admin, user.id, "manual");
+    return NextResponse.json({ success: true, message: "Score recompute queued." });
+  } catch (err) {
+    console.error("compute: enqueue failed", err);
+    return NextResponse.json({ error: "Failed to enqueue recompute" }, { status: 500 });
   }
 }
