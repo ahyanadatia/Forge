@@ -75,14 +75,14 @@ export function CapabilityMapCard({ forgeScore, confidence, dimensions, onOpenEx
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Capability Map
             </CardTitle>
-            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+            <p className="text-[11px] text-muted-foreground/60 mt-0.5">
               Skills derived from verified evidence
             </p>
           </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 cursor-help">
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 cursor-help">
                   <Info className="h-3 w-3" />
                   {coverage}
                 </span>
@@ -150,12 +150,11 @@ export function CapabilityMapCard({ forgeScore, confidence, dimensions, onOpenEx
           {hasAnyData && (
             <path
               d={polygonPath}
-              fill="currentColor"
-              className="text-primary/8"
-              stroke="currentColor"
-              strokeWidth={1.25}
+              fill="hsl(var(--brand))"
+              fillOpacity={0.15}
+              stroke="hsl(var(--brand))"
+              strokeWidth={1.5}
               strokeLinejoin="round"
-              style={{ color: "hsl(var(--primary))" }}
             />
           )}
 
@@ -167,8 +166,8 @@ export function CapabilityMapCard({ forgeScore, confidence, dimensions, onOpenEx
                 cx={x}
                 cy={y}
                 r={hoveredAxis === skillStatuses[i].key ? 3.5 : 2}
-                fill="currentColor"
-                className="text-primary transition-all"
+                fill="hsl(var(--brand))"
+                className="transition-all"
               />
             ))}
 
@@ -268,7 +267,7 @@ export function CapabilityMapCard({ forgeScore, confidence, dimensions, onOpenEx
         </svg>
 
         {/* Under radar */}
-        <div className="flex items-center justify-center gap-2 mt-1 text-[10px]">
+        <div className="flex items-center justify-center gap-2 mt-1 text-[11px]">
           {computed && formatBand(forgeScore) && (
             <>
               <span className="font-medium text-muted-foreground">{formatBand(forgeScore)}</span>
@@ -292,7 +291,7 @@ export function CapabilityMapCard({ forgeScore, confidence, dimensions, onOpenEx
         {onOpenExplainer && (
           <button
             onClick={onOpenExplainer}
-            className="text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors mt-1"
+            className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors mt-1"
           >
             Learn more
           </button>

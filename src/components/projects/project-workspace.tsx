@@ -121,12 +121,12 @@ export function ProjectWorkspace({
   }, []);
 
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
+    <div className="container max-w-4xl space-y-6 py-6 sm:py-8">
       {/* ─── HEADER ─── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{project.title}</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="break-words text-2xl font-bold tracking-tight">{project.title}</h1>
             <ProjectLevelChip level={projectLevel.level} />
             <Badge variant={STATUS_LABELS[project.status]?.variant as any ?? "secondary"}>
               {STATUS_LABELS[project.status]?.label ?? project.status}
@@ -143,15 +143,15 @@ export function ProjectWorkspace({
             >
               <Avatar className="h-5 w-5">
                 <AvatarImage src={owner.avatar_url} />
-                <AvatarFallback className="text-[10px]">{getInitials(owner)}</AvatarFallback>
+                <AvatarFallback className="text-[11px]">{getInitials(owner)}</AvatarFallback>
               </Avatar>
               {getName(owner)}
             </Link>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {isOwner && project.status === "draft" && (
-            <Button onClick={publishProject}>Publish</Button>
+            <Button variant="brand" onClick={publishProject}>Publish</Button>
           )}
           {isOwner && (
             <Button variant="outline" onClick={() => setEditOpen(true)}>Edit</Button>
@@ -248,7 +248,7 @@ export function ProjectWorkspace({
                     </div>
                     <Progress value={pct} className="h-1.5 w-20 shrink-0" />
                     {compLabel !== "TBD" && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground shrink-0">
+                      <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground shrink-0">
                         <DollarSign className="h-2.5 w-2.5" />
                         {compLabel}
                       </span>
@@ -299,7 +299,7 @@ export function ProjectWorkspace({
                         <span className="text-xs text-muted-foreground">@{m.builder.username}</span>
                       )}
                       {m.builder_id === project.owner_id && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">Owner</Badge>
+                        <Badge variant="outline" className="text-[11px] px-1.5 py-0">Owner</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -447,7 +447,7 @@ export function ProjectWorkspace({
                 <div key={ev.id} className="flex items-start gap-3 text-sm">
                   <Avatar className="h-6 w-6 mt-0.5">
                     <AvatarImage src={ev.actor?.avatar_url} />
-                    <AvatarFallback className="text-[10px]">{ev.actor?.full_name?.[0] ?? "?"}</AvatarFallback>
+                    <AvatarFallback className="text-[11px]">{ev.actor?.full_name?.[0] ?? "?"}</AvatarFallback>
                   </Avatar>
                   <div>
                     <p>

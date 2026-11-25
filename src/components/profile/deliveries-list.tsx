@@ -27,7 +27,7 @@ export function DeliveriesList({ deliveries }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-medium">
-            Verified Deliveries
+            Deliveries
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -43,7 +43,7 @@ export function DeliveriesList({ deliveries }: Props) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-medium">
-          Verified Deliveries
+          Deliveries
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
