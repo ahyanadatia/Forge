@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,20 @@ export default function NewProjectPage() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      toast.error("Your session has expired. Sign in again to create a project.");
+      router.push("/login?redirect=/projects/new");
+      return;
+    }
+
+    const title = String(form.get("title") ?? "").trim();
+    const description = String(form.get("description") ?? "").trim();
+    if (!title || !description) {
+      setLoading(false);
+      toast.error("Give the project a title and a short description.");
+      return;
+    }
 
     try {
       const category = form.get("category") as string;
@@ -101,8 +115,8 @@ export default function NewProjectPage() {
 
       const project = await createProject(supabase, {
         owner_id: user.id,
-        title: form.get("title") as string,
-        description: form.get("description") as string,
+        title,
+        description,
         category: category || undefined,
         roles_needed: selectedRoles,
         team_size: teamSize,
@@ -142,13 +156,15 @@ export default function NewProjectPage() {
       }
 
       router.push(`/projects/${project.id}`);
-    } catch {
+    } catch (err) {
+      console.error("create project failed", err);
+      toast.error("Couldn't create the project. Check your connection and try again.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="container max-w-lg py-12">
+    <div className="container max-w-lg py-6 sm:py-12">
       <Card>
         <CardHeader>
           <CardTitle>Create a Project</CardTitle>
