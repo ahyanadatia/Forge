@@ -13,8 +13,8 @@ const POLL_INTERVAL = 20_000;
 
 export function LiveUsersIndicator() {
   const [count, setCount] = useState<number | null>(null);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
-  const pollRef = useRef<ReturnType<typeof setInterval>>();
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
     const heartbeat = () => {

@@ -5,10 +5,11 @@
  */
 
 import { createHash } from "crypto";
-import type { EvidenceType, EvidenceSource, ScoreEvidence } from "./types";
+import type { EvidenceType, EvidenceSource, RecomputeTrigger, ScoreEvidence } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "@/types/database";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = any;
+type Client = SupabaseClient<Database>;
 
 export function hashPayload(payload: Record<string, unknown>): string {
   const canonical = JSON.stringify(payload, Object.keys(payload).sort());
@@ -44,7 +45,7 @@ export async function ingestEvidence(
         delivery_id: params.delivery_id ?? null,
         type: params.type,
         source: params.source,
-        payload: params.payload,
+        payload: params.payload as Json,
         confidence: Math.max(0, Math.min(1, params.confidence)),
         hash,
       },
@@ -58,7 +59,7 @@ export async function ingestEvidence(
     return null;
   }
 
-  return data ?? null;
+  return (data as unknown as ScoreEvidence | null) ?? null;
 }
 
 export async function getBuilderEvidence(
@@ -107,7 +108,7 @@ export async function countEvidenceByType(
 export async function enqueueRecompute(
   client: Client,
   builderId: string,
-  triggerType: string,
+  triggerType: RecomputeTrigger,
   evidenceId?: string,
   priority: number = 0
 ): Promise<void> {

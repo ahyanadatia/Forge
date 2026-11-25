@@ -2,137 +2,121 @@
 
 [![CI](https://github.com/ahyanadatia/Forge/actions/workflows/ci.yml/badge.svg)](https://github.com/ahyanadatia/Forge/actions/workflows/ci.yml)
 
-**A track record for builders, computed from evidence rather than self-description.**
+A track record for builders, computed from evidence instead of self-description.
 
-LinkedIn shows employment. GitHub shows code. Forge shows what people actually deliver: builders
-log what they shipped, Forge checks it against live deployments and repositories, and the result
-is a score that teams can use to find collaborators they can rely on.
+Builders log what they shipped. Forge checks each delivery against the live deployment and the
+GitHub repository, records what it finds as evidence, and turns that evidence into a score teams
+can use to find collaborators who deliver.
 
-Next.js 14 (App Router) · TypeScript · Supabase (Postgres, Auth, Row Level Security) · Tailwind + shadcn/ui · Vitest
+Next.js 16 · React 19 · TypeScript · Supabase (Postgres, Auth, row level security) · Vitest
 
-## What is in here
+## Architecture
 
-| Area | What it does | Where |
-| --- | --- | --- |
-| Scoring engine | Four-dimension composite mapped to a 100–999 score, with movement caps, tenure gates and inactivity decay | `src/lib/scoring/engine.ts` |
-| Anti-gaming | A multiplier (0.6–1.05) that penalises bursty activity, attestation rings and cloned templates | `src/lib/scoring/anti-gaming.ts` |
-| Verification probes | Live HTTP checks on deployments and GitHub API checks on repositories; every probe writes an evidence row | `src/lib/scoring/probes.ts` |
-| Recompute pipeline | Queue-driven rescoring with rate limiting, score history and versioned model weights | `src/lib/scoring/pipeline.ts` |
-| Matching | Builder-to-project compatibility, plus an estimate of whether an invite will be accepted | `src/lib/matching/` |
-| Skill analysis | Skill estimates from GitHub signals via an LLM, with a deterministic fallback, blended with self-assessment | `src/lib/skill-ai.ts`, `src/lib/skill-signals.ts`, `src/lib/skills.ts` |
-| Search | Natural-language queries parsed into structured filters, no LLM involved | `src/lib/prompt-parser.ts` |
-| Teams | Invite → accept → join implemented as Postgres functions with row locks | `supabase/migrations/20260228_invite_flow_v2.sql` |
-
-## How the Forge Score works
-
-The score is deterministic given the evidence on record.
-
-1. **Evidence in.** Verified deliveries, probe results, team attestations and project outcomes are
-   stored as rows in `score_evidence`.
-2. **Four dimensions**, each 0–100, combined with weights held in the `scoring_model_versions`
-   table so the model can be re-versioned without a deploy:
-
-   | Dimension | Default weight |
-   | --- | --- |
-   | Execution Consistency | 30% |
-   | Reliability & Commitment | 30% |
-   | AI-Orchestration Intelligence | 20% |
-   | Live Performance Index | 20% |
-
-3. **Anti-gaming multiplier.** Weekly activity is bucketed and scored with a Gini coefficient to
-   catch bursts; reciprocal attestation rings and template clones are detected separately. The
-   multiplier ranges from 0.6 (flagged) to 1.05 (consistent long-term activity).
-4. **Mapping.** The adjusted composite goes through a sigmoid onto a 100–999 scale.
-5. **Guard rails.**
-   - Inactivity decay starts after 60 days without new evidence.
-   - 800+ requires at least 4 months of evidence; 900+ requires at least 9.
-   - A recompute moves the score by at most ±35, or ±70 when there is milestone evidence.
-
-A confidence value (0–100) is reported alongside, based on evidence volume, evidence diversity,
-tenure and whether any anti-gaming flag fired.
-
-**Status.** The V3 engine above is implemented, tested and exposed through `/api/scoring/v3/*`,
-but the interface does not call it yet: the score shown in the app is still computed by the
-earlier V2 formula (0–1000, `src/lib/forge-score.ts`), and nothing schedules the V3 recompute
-queue. Wiring V3 into the interface is the main piece of unfinished work.
-
-## Matching
-
-Builders are ranked against a project on five components:
-
-| Component | Weight |
-| --- | --- |
-| Skill fit | 35% |
-| Reliability fit | 25% |
-| Execution fit | 15% |
-| Stack fit | 15% |
-| Commitment fit | 10% |
-
-Skill levels blend an AI estimate with self-assessment (`0.6 × AI + 0.4 × self`). The AI estimate
-uses the OpenAI API when `OPENAI_API_KEY` is set and falls back to a deterministic heuristic
-when it is not, so the app runs without any model key.
-
-## Data model
-
-26 Postgres tables across 16 migrations in `supabase/migrations/`, with 63 Row Level Security
-policies. Authentication is GitHub OAuth through Supabase Auth.
-
-## Tests
-
-```bash
-npm test          # 254 tests across 15 files (Vitest), including property-based tests
-npx tsc --noEmit  # type-check
-npm run lint      # ESLint
+```mermaid
+flowchart LR
+  UI["Next.js app<br/>(App Router)"] -->|user session| API["Route handlers<br/>/api/*"]
+  API -->|RLS-checked reads| DB[("Supabase Postgres<br/>26 tables, RLS")]
+  API -->|"verify a delivery"| Probes["Verification probes"]
+  Probes -->|"safeFetch<br/>(SSRF-guarded)"| Site["Builder's deployment"]
+  Probes -->|REST| GH["GitHub API"]
+  Probes -->|"service role"| Ledger[("score_evidence<br/>append-only ledger")]
+  Ledger --> Queue[("score_recompute_queue")]
+  Cron["Scheduler<br/>(CRON_SECRET)"] --> Worker["process-queue"]
+  Queue --> Worker --> Engine["V3 scoring engine<br/>(pure functions)"]
+  Engine --> History[("score_history")]
 ```
 
-The tests cover the scoring engines, matching, acceptance likelihood, the search parser, skill
-blending, the invite flow and project workflow rules. Property-based tests (fast-check) assert
-the scoring invariants for arbitrary inputs: scores stay in range, movement caps and tenure
-gates hold, and more verified work never lowers a score. CI runs lint, the type-check, the tests
-and a production build on every push and pull request.
+Two rules shape the design:
+
+- **Evidence is append-only and written by the system.** Users can read the ledger but cannot
+  write to it; row level security has no insert policy. Routes authenticate the caller with their
+  own session, check ownership, and only then write with a server-only service-role client.
+- **Scoring is pure.** The engine in `src/lib/scoring/engine.ts` takes evidence and returns a
+  score with no I/O, which is what makes it property-testable.
+
+## How the score works
+
+1. **Evidence.** Verified deliveries, probe results, team attestations and project outcomes, one
+   row each in `score_evidence`, deduplicated by a hash of their content.
+2. **Four dimensions**, 0–100 each, weighted by the active row in `scoring_model_versions` so the
+   model can be re-versioned without a deploy: execution consistency (30%), reliability and
+   commitment (30%), AI-orchestration (20%), live performance (20%).
+3. **Anti-gaming multiplier** (0.6–1.05): bursty activity is scored with a Gini coefficient over
+   weekly buckets, and reciprocal attestation rings and cloned templates are detected separately.
+4. **Mapping** onto 100–999 through a sigmoid, with guard rails: decay after 60 days without new
+   evidence, 800+ needs 4 months of history and 900+ needs 9, and one recompute moves the score by
+   at most ±35 (±70 with milestone evidence).
+
+## Verification probes and SSRF
+
+A delivery's deployment URL is typed in by a user and fetched by the server, which is the classic
+server-side request forgery setup. All such requests go through `src/lib/net/safe-fetch.ts`:
+
+- only `http`/`https` on ports 80 and 443, and no credentials in the URL;
+- IP literals are checked against private, loopback, link-local (including the cloud metadata
+  address), CGNAT, multicast and reserved ranges, for IPv4 and IPv6, including IPv4-mapped forms;
+- hostnames are resolved inside the socket's own DNS lookup hook, so the address that is checked
+  is the address that is connected to (no DNS-rebinding gap between check and connect);
+- redirects are followed by hand, and every hop is validated again (at most 3);
+- a total timeout and a 512 KB cap on the body.
+
+GitHub repository URLs are parsed strictly (`https://github.com/<owner>/<repo>` with valid
+names) before they become API paths.
+
+## Status
+
+- The V3 engine, evidence ledger, probes and queue are implemented and tested, and the API routes
+  under `/api/scoring/v3/*` work once `SUPABASE_SERVICE_ROLE_KEY` is set.
+- The interface still shows the earlier V2 score (`src/lib/forge-score.ts`). Switching the profile
+  and dashboard to V3 is the next piece of work.
+- `src/types/database.ts` is hand-written and does not yet describe every table; queries against
+  undescribed tables go through an explicit `untyped()` helper. Generating the types from the
+  schema will remove it.
 
 ## Run it locally
+
+Requires Node 22.12+.
 
 ```bash
 git clone https://github.com/ahyanadatia/Forge.git
 cd Forge
 npm install
-cp .env.local.example .env.local   # then fill in the values below
+cp .env.local.example .env.local   # fill in the values
 npm run dev                        # http://localhost:3000
 ```
 
-1. Create a [Supabase project](https://supabase.com/dashboard) and run the files in
-   `supabase/migrations/` in filename order in the SQL editor.
+1. Create a Supabase project and run the files in `supabase/migrations/` in filename order.
 2. Enable GitHub under Authentication → Providers.
-3. Set the environment variables:
+3. Fill in `.env.local`. `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are
+   required; `SUPABASE_SERVICE_ROLE_KEY` is needed for V3 scoring; `GITHUB_TOKEN`,
+   `OPENAI_API_KEY` and `CRON_SECRET` are optional (see the example file).
 
-   | Variable | Required | Purpose |
-   | --- | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
-   | `GITHUB_TOKEN` | No | Higher GitHub API rate limits for repository probes |
-   | `OPENAI_API_KEY` | No | LLM skill analysis; a deterministic fallback is used without it |
-   | `OPENAI_MODEL` | No | Defaults to `gpt-4o-mini` |
-   | `CRON_SECRET` | No | Lets a scheduler call the queue-processing route without a user session |
+## Checks
 
-## Project layout
+```bash
+npm test            # Vitest, including property-based tests (fast-check)
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint
+npm run build
+```
+
+CI runs all four on every push and pull request.
+
+## Layout
 
 ```
 src/
-├── app/
-│   ├── (auth)/          # Login and OAuth callback
-│   ├── (platform)/      # Dashboard, profiles, projects, teams, discover, messages, settings
-│   ├── u/[username]/    # Profile pages by username
-│   └── api/             # Scoring, verification, matching, search, invites, presence
-├── components/          # UI, grouped by feature (shadcn/ui primitives in ui/)
+├── app/                 # pages and route handlers (api/)
+├── components/          # UI by feature; shadcn/ui primitives in ui/
 ├── lib/
-│   ├── scoring/         # V3 engine, anti-gaming, probes, evidence, recompute pipeline
-│   ├── matching/        # Compatibility, acceptance likelihood, project level
-│   ├── supabase/        # Browser, server and middleware clients
-│   └── __tests__/       # Unit tests
-├── services/            # Database access layer
-└── types/               # Domain and database types
-supabase/migrations/     # Schema, RLS policies and Postgres functions
+│   ├── net/             # safeFetch
+│   ├── scoring/         # V3 engine, anti-gaming, probes, evidence ledger, queue
+│   ├── matching/        # builder-project compatibility, acceptance likelihood
+│   ├── supabase/        # browser, server and service-role clients
+│   └── __tests__/
+├── services/            # database access
+└── types/
+supabase/migrations/     # schema, RLS policies, Postgres functions
 ```
 
 ## Contributors

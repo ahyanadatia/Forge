@@ -4,10 +4,12 @@
  */
 
 import { ingestEvidence, enqueueRecompute } from "./evidence";
+import { safeFetch, SafeFetchError, type SafeFetchOptions } from "@/lib/net/safe-fetch";
 import type { EvidenceType } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = any;
+type Client = SupabaseClient<Database>;
 
 // ─── HTTP Deployment Probe ────────────────────────────────────────────────
 
@@ -16,40 +18,41 @@ export interface HttpProbeResult {
   status_code: number | null;
   response_time_ms: number | null;
   has_forge_token: boolean;
+  final_url: string | null;
   error: string | null;
 }
 
-export async function probeDeployment(url: string): Promise<HttpProbeResult> {
+/**
+ * Probe a user-supplied deployment URL. The URL comes from the user, so it
+ * goes through safeFetch: no private, loopback or link-local targets, even
+ * via DNS or redirects. One GET (the body is needed for the token check),
+ * capped at 512 KB.
+ */
+export async function probeDeployment(
+  url: string,
+  options: Pick<SafeFetchOptions, "resolve" | "isBlocked" | "allowedPorts"> = {}
+): Promise<HttpProbeResult> {
   const start = Date.now();
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-
-    const res = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { "User-Agent": "ForgeVerifier/3.0" },
-    });
-    clearTimeout(timeout);
-
-    const body = res.ok ? await fetch(url, { signal: AbortSignal.timeout(5000) }).then(r => r.text()).catch(() => "") : "";
-    const hasForgeToken = body.includes("forge-verify") || res.headers.has("x-forge-verify");
-
+    const res = await safeFetch(url, { timeoutMs: 10_000, maxBodyBytes: 512 * 1024, ...options });
+    const ok = res.status >= 200 && res.status < 400;
+    const hasForgeToken = (ok && res.body.includes("forge-verify")) || res.headers["x-forge-verify"] !== undefined;
     return {
-      reachable: res.status >= 200 && res.status < 400,
+      reachable: ok,
       status_code: res.status,
       response_time_ms: Date.now() - start,
       has_forge_token: hasForgeToken,
+      final_url: res.url,
       error: null,
     };
-  } catch (err: any) {
+  } catch (err) {
     return {
       reachable: false,
       status_code: null,
       response_time_ms: Date.now() - start,
       has_forge_token: false,
-      error: err.message ?? "Unknown error",
+      final_url: null,
+      error: err instanceof SafeFetchError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Unknown error",
     };
   }
 }
@@ -67,44 +70,77 @@ export interface GitHubContributorResult {
   error: string | null;
 }
 
+const GITHUB_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const GITHUB_REPO = /^[A-Za-z0-9._-]{1,100}$/;
+
+/**
+ * Parse owner/repo out of a GitHub URL. Only https://github.com/<owner>/<repo>
+ * is accepted, and both parts must be valid GitHub names, so nothing a user
+ * types can change the path of the API request built from them.
+ */
+export function parseGitHubRepo(repoUrl: string): { owner: string; repo: string } | null {
+  let url: URL;
+  try {
+    url = new URL(repoUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || !["github.com", "www.github.com"].includes(url.hostname)) return null;
+  const [owner, rawRepo] = url.pathname.split("/").filter(Boolean);
+  const repo = rawRepo?.replace(/\.git$/, "");
+  if (!owner || !repo || !GITHUB_NAME.test(owner) || !GITHUB_REPO.test(repo) || repo === "." || repo === "..") return null;
+  return { owner, repo };
+}
+
+interface GitHubContributor { login?: string; contributions?: number }
+interface GitHubContentEntry { name?: string }
+
+const EMPTY_GH: Omit<GitHubContributorResult, "error"> = {
+  is_contributor: false,
+  commit_count: 0,
+  repo_exists: false,
+  languages: {},
+  has_ci: false,
+  has_tests: false,
+  has_dockerfile: false,
+};
+
 export async function probeGitHubContributor(
   repoUrl: string,
   githubUsername: string,
   githubToken?: string
 ): Promise<GitHubContributorResult> {
-  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (!match) {
-    return { is_contributor: false, commit_count: 0, repo_exists: false, languages: {}, has_ci: false, has_tests: false, has_dockerfile: false, error: "Invalid GitHub URL" };
-  }
-  const [, owner, repo] = match;
-  const repoName = repo.replace(/\.git$/, "");
-  const headers: Record<string, string> = { "User-Agent": "ForgeVerifier/3.0" };
+  const parsed = parseGitHubRepo(repoUrl);
+  if (!parsed) return { ...EMPTY_GH, error: "Invalid GitHub URL" };
+  const base = `https://api.github.com/repos/${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
+  const headers: Record<string, string> = { "User-Agent": "ForgeVerifier/3.1", Accept: "application/vnd.github+json" };
   if (githubToken) headers["Authorization"] = `Bearer ${githubToken}`;
+  const get = (path: string) => fetch(`${base}${path}`, { headers, signal: AbortSignal.timeout(10_000) });
 
   try {
-    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, { headers });
-    if (!repoRes.ok) {
-      return { is_contributor: false, commit_count: 0, repo_exists: false, languages: {}, has_ci: false, has_tests: false, has_dockerfile: false, error: `Repo not found: ${repoRes.status}` };
-    }
+    const repoRes = await get("");
+    if (!repoRes.ok) return { ...EMPTY_GH, error: `Repo not found: ${repoRes.status}` };
 
     const [contribRes, langRes, contentsRes] = await Promise.all([
-      fetch(`https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=100`, { headers }),
-      fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, { headers }),
-      fetch(`https://api.github.com/repos/${owner}/${repoName}/contents`, { headers }),
+      get("/contributors?per_page=100"),
+      get("/languages"),
+      get("/contents"),
     ]);
 
-    const contributors: any[] = contribRes.ok ? await contribRes.json() : [];
+    const contributors: GitHubContributor[] = contribRes.ok ? await contribRes.json() : [];
     const languages: Record<string, number> = langRes.ok ? await langRes.json() : {};
-    const contents: any[] = contentsRes.ok ? await contentsRes.json() : [];
+    const contents: unknown = contentsRes.ok ? await contentsRes.json() : [];
 
     const userContrib = contributors.find(
-      (c: any) => c.login?.toLowerCase() === githubUsername.toLowerCase()
+      (c) => c.login?.toLowerCase() === githubUsername.toLowerCase()
     );
 
-    const fileNames = Array.isArray(contents) ? contents.map((f: any) => f.name?.toLowerCase() ?? "") : [];
-    const has_ci = fileNames.some((f: string) => f === ".github" || f === ".gitlab-ci.yml" || f === "jenkinsfile");
-    const has_tests = fileNames.some((f: string) => f.includes("test") || f === "jest.config.js" || f === "vitest.config.ts" || f === "pytest.ini");
-    const has_dockerfile = fileNames.some((f: string) => f === "dockerfile" || f === "docker-compose.yml");
+    const fileNames = Array.isArray(contents)
+      ? (contents as GitHubContentEntry[]).map((f) => f.name?.toLowerCase() ?? "")
+      : [];
+    const has_ci = fileNames.some((f) => f === ".github" || f === ".gitlab-ci.yml" || f === "jenkinsfile");
+    const has_tests = fileNames.some((f) => f.includes("test") || f === "jest.config.js" || f === "vitest.config.ts" || f === "pytest.ini");
+    const has_dockerfile = fileNames.some((f) => f === "dockerfile" || f === "docker-compose.yml");
 
     return {
       is_contributor: !!userContrib,
@@ -116,8 +152,8 @@ export async function probeGitHubContributor(
       has_dockerfile,
       error: null,
     };
-  } catch (err: any) {
-    return { is_contributor: false, commit_count: 0, repo_exists: false, languages: {}, has_ci: false, has_tests: false, has_dockerfile: false, error: err.message };
+  } catch (err) {
+    return { ...EMPTY_GH, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
 
@@ -242,7 +278,7 @@ export async function runProbesForDelivery(
     if (ev) evidenceIds.push(ev.id);
 
     // Ownership strength
-    const httpOk = (results.http_probe as any)?.reachable;
+    const httpOk = (results.http_probe as HttpProbeResult | undefined)?.reachable ?? false;
     if (ghResult.is_contributor && httpOk) {
       const ownerEv = await ingestEvidence(client, {
         builder_id: builderId,

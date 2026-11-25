@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       .single() as { data: any };
 
     if (existing) {
-      await (supabase as any)
+      await supabase
         .from("verifications")
         .update({
           ...result,
@@ -58,14 +58,14 @@ export async function POST(request: Request) {
         })
         .eq("delivery_id", delivery_id);
     } else {
-      await (supabase as any).from("verifications").insert({
+      await supabase.from("verifications").insert({
         delivery_id,
         ...result,
       });
     }
 
     if (result.overall_status === "verified") {
-      await (supabase as any)
+      await supabase
         .from("deliveries")
         .update({ status: "verified" })
         .eq("id", delivery_id);

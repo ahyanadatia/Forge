@@ -5,10 +5,11 @@ import { getBuilderByUsername, getBuilderByOldUsername } from "@/services/builde
 export const dynamic = "force-dynamic";
 
 interface Props {
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }
 
-export default async function PublicProfilePage({ params }: Props) {
+export default async function PublicProfilePage(props: Props) {
+  const params = await props.params;
   const supabase = await createClient();
 
   let builder;

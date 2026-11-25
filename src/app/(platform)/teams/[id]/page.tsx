@@ -16,10 +16,11 @@ import { TeamTaskList } from "@/components/teams/task-list";
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default async function TeamPage({ params }: Props) {
+export default async function TeamPage(props: Props) {
+  const params = await props.params;
   const supabase = await createClient();
 
   let team: any;

@@ -58,7 +58,7 @@ export function AvatarUpload({
 
         const urlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
 
-        await (supabase as any)
+        await supabase
           .from("builders")
           .update({ avatar_url: publicUrl })
           .eq("id", userId);
@@ -88,7 +88,7 @@ export function AvatarUpload({
           .remove(files.map((f) => `${userId}/${f.name}`));
       }
 
-      await (supabase as any)
+      await supabase
         .from("builders")
         .update({ avatar_url: null })
         .eq("id", userId);

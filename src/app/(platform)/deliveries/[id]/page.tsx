@@ -26,7 +26,7 @@ import { formatDate } from "@/lib/utils";
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 const statusConfig: Record<string, { label: string; variant: "success" | "secondary" | "warning" | "destructive" }> = {
@@ -43,7 +43,8 @@ const verificationStatusConfig: Record<string, { label: string; icon: any; color
   failed: { label: "Verification Failed", icon: ShieldAlert, color: "text-destructive" },
 };
 
-export default async function DeliveryPage({ params }: Props) {
+export default async function DeliveryPage(props: Props) {
+  const params = await props.params;
   const supabase = await createClient();
 
   let delivery;

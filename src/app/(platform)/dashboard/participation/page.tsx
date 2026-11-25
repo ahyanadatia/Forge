@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
+import { untyped } from "@/lib/supabase/untyped";
 
 export default function ParticipationDashboard() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -29,7 +30,7 @@ export default function ParticipationDashboard() {
           .select("*, projects(id, title, status, timeline, hours_per_week)")
           .eq("builder_id", user.id)
           .order("created_at", { ascending: false }),
-        supabase
+        untyped(supabase)
           .from("invitations")
           .select("*, project:projects(id, title, status, timeline, hours_per_week, team_size, category, stage), sender:builders!invitations_sender_id_fkey(id, full_name, avatar_url, forge_score)")
           .eq("builder_id", user.id)

@@ -9,11 +9,12 @@ import { getCategoryLabel, getStageLabel } from "@/lib/project-constants";
 import { computeProjectLevel } from "@/lib/matching/project-level";
 import { ProjectLevelChip } from "@/components/projects/project-level-chip";
 import { InviteResponseButtons } from "@/components/projects/invite-response-buttons";
+import { untyped } from "@/lib/supabase/untyped";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function getName(b: any) {
@@ -24,13 +25,14 @@ function getInitials(b: any) {
   return ((b?.first_name?.[0] ?? b?.full_name?.[0] ?? "?") + (b?.last_name?.[0] ?? "")).toUpperCase();
 }
 
-export default async function InvitePage({ params }: Props) {
+export default async function InvitePage(props: Props) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 
-  const { data: invitation } = await supabase
+  const { data: invitation } = await untyped(supabase)
     .from("invitations")
     .select(`
       *,

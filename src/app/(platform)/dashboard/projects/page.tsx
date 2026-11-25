@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { computeProjectLevel } from "@/lib/matching/project-level";
 import { ProjectLevelChip } from "@/components/projects/project-level-chip";
+import { untyped } from "@/lib/supabase/untyped";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function ProjectsDashboard() {
       .select("*")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false }),
-    supabase
+    untyped(supabase)
       .from("invitations")
       .select("*, builder:builders!invitations_builder_id_fkey(full_name, username), project:projects(title)")
       .eq("sender_id", user.id)

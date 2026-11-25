@@ -24,8 +24,9 @@ const updateSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

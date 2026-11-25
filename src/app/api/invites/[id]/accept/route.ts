@@ -4,8 +4,9 @@ import { acceptInviteTransaction } from "@/services/membership";
 
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   const supabase = await createClient();
   const {
     data: { user },

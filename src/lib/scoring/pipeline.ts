@@ -13,9 +13,10 @@
 import { computeForgeScoreV3, type ComputeV3Input } from "./engine";
 import { getBuilderEvidence, countEvidenceByType } from "./evidence";
 import type { ScoringModelVersion, ScoreEvidence, V3ScoreResult } from "./types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "@/types/database";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = any;
+type Client = SupabaseClient<Database>;
 
 const RATE_LIMIT_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -76,12 +77,14 @@ export async function computeScoreForBuilder(
     .limit(1)
     .single();
 
+  // weights, caps and tier_config are jsonb columns; their shape is fixed by
+  // the seed in 20260228_forge_score_v3.sql, so they are cast at this boundary.
   const model: ScoringModelVersion = modelRow
     ? {
         version: modelRow.version,
-        weights: modelRow.weights,
-        caps: modelRow.caps,
-        tier_config: modelRow.tier_config,
+        weights: modelRow.weights as unknown as ScoringModelVersion["weights"],
+        caps: modelRow.caps as unknown as ScoringModelVersion["caps"],
+        tier_config: modelRow.tier_config as unknown as ScoringModelVersion["tier_config"],
         effective_from: modelRow.effective_from,
       }
     : getDefaultModel();
@@ -120,7 +123,7 @@ export async function computeScoreForBuilder(
     .limit(1)
     .single();
 
-  const previousSkillScores = lastHistory?.breakdown?.skill_scores ?? null;
+  const previousSkillScores = readSkillScores(lastHistory?.breakdown ?? null);
 
   // Get attestations for ring detection
   const { data: attestations } = await client
@@ -154,8 +157,8 @@ export async function computeScoreForBuilder(
     breakdown: {
       ...result.breakdown,
       skill_scores: currentSkills,
-    },
-    anomaly_flags: result.anomaly_flags,
+    } as unknown as Json,
+    anomaly_flags: result.anomaly_flags as unknown as Json,
     evidence_snapshot_ids: result.evidence_ids.slice(0, 100),
     model_version: model.version,
     reason,
@@ -232,4 +235,13 @@ function getDefaultModel(): ScoringModelVersion {
     },
     effective_from: new Date().toISOString(),
   };
+}
+
+
+/** Pull `skill_scores` out of a stored score_history breakdown, if it is there and well-formed. */
+export function readSkillScores(breakdown: Json | null): number[] | null {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return null;
+  const scores = breakdown.skill_scores;
+  if (!Array.isArray(scores) || !scores.every((v) => typeof v === "number")) return null;
+  return scores as number[];
 }
