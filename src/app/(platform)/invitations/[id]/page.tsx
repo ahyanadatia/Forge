@@ -9,6 +9,7 @@ import { getCategoryLabel, getStageLabel } from "@/lib/project-constants";
 import { computeProjectLevel } from "@/lib/matching/project-level";
 import { ProjectLevelChip } from "@/components/projects/project-level-chip";
 import { InviteResponseButtons } from "@/components/projects/invite-response-buttons";
+import { untyped } from "@/lib/supabase/untyped";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function InvitePage({ params }: Props) {
 
   if (!user) redirect("/login");
 
-  const { data: invitation } = await supabase
+  const { data: invitation } = await untyped(supabase)
     .from("invitations")
     .select(`
       *,
