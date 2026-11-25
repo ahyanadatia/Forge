@@ -112,7 +112,7 @@ export default function ParticipationDashboard() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Avatar className="h-5 w-5">
                         <AvatarImage src={inv.sender.avatar_url} />
-                        <AvatarFallback className="text-[10px]">
+                        <AvatarFallback className="text-[11px]">
                           {inv.sender.full_name?.[0] ?? "?"}
                         </AvatarFallback>
                       </Avatar>

@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDisplayName, getInitials } from "@/lib/profile";
-import type { Builder, ForgeScore } from "@/types";
+import type { Builder } from "@/types";
 import Link from "next/link";
 
 const availabilityConfig = {
@@ -18,7 +18,8 @@ const availabilityConfig = {
 
 interface Props {
   builder: Builder;
-  forgeScore: ForgeScore | null;
+  /** Latest V3 score (100-999), or null before the first compute. */
+  scoreV3: number | null;
   stats: {
     verifiedDeliveries: number;
     completionRate: number;
@@ -26,7 +27,7 @@ interface Props {
   isOwner: boolean;
 }
 
-export function ProfileHeader({ builder, forgeScore, stats, isOwner }: Props) {
+export function ProfileHeader({ builder, scoreV3, stats, isOwner }: Props) {
   const availability =
     availabilityConfig[builder.availability] ?? availabilityConfig.unavailable;
 
@@ -97,9 +98,9 @@ export function ProfileHeader({ builder, forgeScore, stats, isOwner }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={availability.variant}>{availability.label}</Badge>
-          {((builder as any).forge_score > 0 || forgeScore) && (
+          {scoreV3 != null && (
             <Badge variant="outline" className="font-mono tabular-nums">
-              Forge Score: {(builder as any).forge_score || forgeScore?.score || 0}
+              Forge Score: {scoreV3}
             </Badge>
           )}
           <Badge variant="outline" className="tabular-nums">

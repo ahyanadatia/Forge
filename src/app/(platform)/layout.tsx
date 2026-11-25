@@ -8,7 +8,7 @@ export default function PlatformLayout({
   return (
     <>
       <Header />
-      <main className="flex-1">{children}</main>
+      <main id="main" className="flex-1 pb-20 md:pb-0">{children}</main>
     </>
   );
 }

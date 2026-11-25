@@ -426,7 +426,7 @@ export default function DiscoverPage() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Avatar className="h-5 w-5">
                               <AvatarImage src={owner.avatar_url} />
-                              <AvatarFallback className="text-[10px]">
+                              <AvatarFallback className="text-[11px]">
                                 {(owner.first_name?.[0] ?? owner.full_name?.[0] ?? "?").toUpperCase()}
                               </AvatarFallback>
                             </Avatar>

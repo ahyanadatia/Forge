@@ -8,7 +8,14 @@ Builders log what they shipped. Forge checks each delivery against the live depl
 GitHub repository, records what it finds as evidence, and turns that evidence into a score teams
 can use to find collaborators who deliver.
 
-Next.js 16 · React 19 · TypeScript · Supabase (Postgres, Auth, row level security) · Vitest
+Next.js 16 · React 19 · TypeScript · Supabase (Postgres, Auth, row level security) · Claude (skill analysis) · Vitest
+
+| Dashboard | Profile (mobile) | Project (mobile) |
+| --- | --- | --- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Profile on mobile](docs/screenshots/profile-mobile.png) | ![Project on mobile](docs/screenshots/project-mobile.png) |
+
+Screenshots are from a local build against the real schema, signed in as a seeded demo account
+(`supabase/seed.sql`); every name and number in them is demo data.
 
 ## Architecture
 
@@ -65,13 +72,37 @@ names) before they become API paths.
 
 ## Status
 
-- The V3 engine, evidence ledger, probes and queue are implemented and tested, and the API routes
-  under `/api/scoring/v3/*` work once `SUPABASE_SERVICE_ROLE_KEY` is set.
-- The interface still shows the earlier V2 score (`src/lib/forge-score.ts`). Switching the profile
-  and dashboard to V3 is the next piece of work.
-- `src/types/database.ts` is hand-written and does not yet describe every table; queries against
-  undescribed tables go through an explicit `untyped()` helper. Generating the types from the
-  schema will remove it.
+- The V3 score is what the app shows. The profile and dashboard read the latest `score_history`
+  row, show the four dimensions with their model weights, a trend line and what is holding the
+  score back. Other people's profiles use `get_public_score_v3()`, which returns the score and
+  dimensions but not the integrity flags. "Recompute" queues a job and processes it straight
+  away, so it doesn't wait for the cron.
+- V2 (`src/lib/forge-score.ts`) is still in the repo for the band and confidence helpers and the
+  old `/api/scoring/compute` route; it is no longer displayed.
+- `src/types/database.ts` is hand-written and does not describe every table yet; queries against
+  undescribed tables go through an explicit `untyped()` helper.
+
+### Database fixes in this round
+
+Found while running the app end to end against the real schema:
+
+- `team_members` had a select policy that queried `team_members`, so every read of teams,
+  members, tasks and activity failed with "infinite recursion detected in policy". Project
+  pages showed an empty team. The membership checks now live in two `security definer` helpers.
+- `accept_invite`, `decline_invite`, `accept_application` and `join_project_as_owner` trusted a
+  user id passed in as an argument and could be called directly over the REST API. They now
+  check it against `auth.uid()`.
+- `scoring_model_versions` and `score_rate_limits` had RLS turned off.
+- New projects failed to insert because `projects.timeline` was `NOT NULL` with no default and
+  the create form doesn't ask for it.
+- `/auth/callback?redirect=` was an open redirect (`?redirect=@evil.com`). It now only accepts
+  same-origin paths.
+
+## Installing it on a phone
+
+Forge is a responsive web app with a manifest, icons and a small service worker (offline page,
+cached static assets; API calls are never cached), so it can be added to the home screen from
+Safari or Chrome. There is no native app-store build.
 
 ## Run it locally
 
@@ -88,8 +119,14 @@ npm run dev                        # http://localhost:3000
 1. Create a Supabase project and run the files in `supabase/migrations/` in filename order.
 2. Enable GitHub under Authentication → Providers.
 3. Fill in `.env.local`. `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are
-   required; `SUPABASE_SERVICE_ROLE_KEY` is needed for V3 scoring; `GITHUB_TOKEN`,
-   `OPENAI_API_KEY` and `CRON_SECRET` are optional (see the example file).
+   required; `SUPABASE_SERVICE_ROLE_KEY` is needed for V3 scoring (without it, Recompute shows
+   a clear "not configured" message); `GITHUB_TOKEN`, `ANTHROPIC_API_KEY` and `CRON_SECRET` are
+   optional (see the example file). Without an Anthropic key, skill analysis uses a
+   deterministic fallback based on evidence counts.
+4. Optional demo data: `psql "$DATABASE_URL" -v demo_password="'pick-one'" -f supabase/seed.sql`
+   creates a labelled demo account (`demo@forge.local`) with deliveries and score history.
+   `supabase/seed-cleanup.sql` removes it. Email sign-in has to be enabled for the demo account;
+   real users sign in with GitHub.
 
 ## Checks
 
