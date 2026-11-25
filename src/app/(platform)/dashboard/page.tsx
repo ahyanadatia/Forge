@@ -19,9 +19,9 @@ import {
   Users,
   ArrowRight,
   Plus,
-  ShieldCheck,
 } from "lucide-react";
-import { getScoreBand } from "@/lib/forge-score";
+import { ForgeScoreV3Card } from "@/components/score/forge-score-v3-card";
+import { getV3Score } from "@/services/score-v3";
 import { OnboardingOrchestrator } from "@/components/onboarding/onboarding-orchestrator";
 
 export const dynamic = 'force-dynamic';
@@ -41,19 +41,12 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const [stats, deliveries, applications, scoreResult] = await Promise.all([
+  const [stats, deliveries, applications, v3] = await Promise.all([
     getBuilderStats(supabase, user.id),
     getBuilderDeliveries(supabase, user.id, { limit: 5 }),
     getBuilderApplications(supabase, user.id),
-    supabase
-      .from("forge_scores")
-      .select("*")
-      .eq("builder_id", user.id)
-      .single()
-      .then((r) => r.data as any),
+    getV3Score(supabase, user.id, true),
   ]);
-
-  const forgeScore = scoreResult;
 
   const { count: projectCount } = await (supabase as any)
     .from("projects")
@@ -68,7 +61,7 @@ export default async function DashboardPage() {
   const b = builder as any;
 
   return (
-    <div className="container max-w-4xl py-8 space-y-8">
+    <div className="container max-w-4xl space-y-6 py-6 sm:py-8">
       <OnboardingOrchestrator
         userId={user.id}
         builder={{
@@ -84,7 +77,7 @@ export default async function DashboardPage() {
       />
 
       {/* Welcome */}
-      <div className="flex items-center justify-between" data-tour="profile-header">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-tour="profile-header">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Welcome back, {builder.first_name ?? getDisplayName(builder).split(" ")[0]}
@@ -109,22 +102,10 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <ForgeScoreV3Card view={v3.view} history={v3.history} isOwner />
+
       {/* Metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div data-tour="forge-score">
-          <MetricCard
-            label="Forge Score"
-            value={b.forge_score || forgeScore?.score || "—"}
-            sublabel={
-              b.forge_score > 0
-                ? `${getScoreBand(b.forge_score)} · ${b.confidence_score ?? 0}% confidence`
-                : forgeScore
-                  ? `Confidence: ${forgeScore.confidence}%`
-                  : "Not yet computed"
-            }
-            icon={ShieldCheck}
-          />
-        </div>
+      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <MetricCard
           label="Verified Deliveries"
           value={stats.verifiedDeliveries}
@@ -193,9 +174,9 @@ export default async function DashboardPage() {
                             ? "secondary"
                             : "outline"
                       }
-                      className="text-xs shrink-0"
+                      className="text-xs capitalize shrink-0"
                     >
-                      {d.status}
+                      {d.status.replace(/_/g, " ")}
                     </Badge>
                   </Link>
                 ))}
@@ -246,9 +227,9 @@ export default async function DashboardPage() {
                             ? "destructive"
                             : "secondary"
                       }
-                      className="text-xs shrink-0"
+                      className="text-xs capitalize shrink-0"
                     >
-                      {app.status}
+                      {app.status.replace(/_/g, " ")}
                     </Badge>
                   </div>
                 ))}

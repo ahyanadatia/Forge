@@ -7,7 +7,8 @@ import { ExecutionSummary } from "@/components/profile/execution-summary";
 import { DeliveriesList } from "@/components/profile/deliveries-list";
 import { ReliabilityPanel } from "@/components/profile/reliability-panel";
 import { InsightsPanel } from "@/components/profile/insights-panel";
-import { ScoreSummaryCard } from "@/components/profile/score-summary-card";
+import { ForgeScoreV3Card } from "@/components/score/forge-score-v3-card";
+import { getV3Score } from "@/services/score-v3";
 import { CapabilityMapCard } from "@/components/profile/capability-map-card";
 import { ProfileInsightsCard } from "@/components/profile/profile-insights-card";
 import { ScoreExplainerSheet } from "@/components/profile/score-explainer-sheet";
@@ -30,35 +31,27 @@ export default async function BuilderProfilePage(props: Props) {
     notFound();
   }
 
-  const [stats, deliveries, scoreResult] = await Promise.all([
-    getBuilderStats(supabase, params.id),
-    getBuilderDeliveries(supabase, params.id),
-    supabase
-      .from("forge_scores")
-      .select("*")
-      .eq("builder_id", params.id)
-      .single()
-      .then((r) => r.data as any),
-  ]);
-
-  const forgeScore = scoreResult;
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === params.id;
 
+  const [stats, deliveries, v3] = await Promise.all([
+    getBuilderStats(supabase, params.id),
+    getBuilderDeliveries(supabase, params.id),
+    getV3Score(supabase, params.id, isOwner),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const b = builder as any;
-  const hasBuilderScore = b.forge_score > 0 || b.last_scored_at;
-
-  const score = hasBuilderScore ? b.forge_score : (forgeScore?.score ?? 0);
-  const conf = hasBuilderScore ? b.confidence_score : (forgeScore?.confidence ?? 0);
-
+  const score = v3.view?.score ?? 0;
+  const conf = v3.view?.confidence ?? 0;
+  const dim = (k: string) => v3.view?.dimensions.find((d) => d.key === k)?.value ?? 0;
   const trustData = {
-    deliverySuccess: hasBuilderScore ? b.delivery_success_score : (forgeScore?.verified_deliveries_component ?? 0),
-    reliability: hasBuilderScore ? b.reliability_score : (forgeScore?.reliability_component ?? 0),
-    quality: hasBuilderScore ? b.delivery_quality_score : (forgeScore?.collaboration_component ?? 0),
-    consistency: hasBuilderScore ? b.consistency_score : (forgeScore?.consistency_component ?? 0),
+    deliverySuccess: dim("ec"),
+    reliability: dim("rc"),
+    quality: dim("aoi"),
+    consistency: dim("lpi"),
   };
 
   const skillDims = {
@@ -70,27 +63,19 @@ export default async function BuilderProfilePage(props: Props) {
   };
 
   return (
-    <div className="container max-w-5xl py-8 space-y-8">
+    <div className="container max-w-5xl space-y-6 py-6 sm:py-8">
       <ProfileHeader
         builder={builder}
-        forgeScore={forgeScore}
+        scoreV3={v3.view?.score ?? null}
         stats={stats}
         isOwner={isOwner}
       />
 
+      <ForgeScoreV3Card view={v3.view} history={v3.history} isOwner={isOwner} />
+
       <ExecutionSummary stats={stats} />
 
-      {/* 3-panel score section */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr_1fr]" data-tour="forge-score">
-        <ScoreSummaryCard
-          forgeScore={score}
-          confidence={conf}
-          deliverySuccess={trustData.deliverySuccess}
-          reliability={trustData.reliability}
-          deliveryQuality={trustData.quality}
-          consistency={trustData.consistency}
-          lastScoredAt={b.last_scored_at ?? forgeScore?.computed_at}
-        />
+      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <CapabilityMapCard
           forgeScore={score}
           confidence={conf}
