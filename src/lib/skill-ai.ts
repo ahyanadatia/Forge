@@ -82,17 +82,60 @@ Rules:
 - Be conservative. Do not inflate scores without evidence.`;
 }
 
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const DEFAULT_MODEL = "claude-haiku-4-5";
+const TIMEOUT_MS = 20_000;
+
+/** Pulls the first JSON object out of a model reply, tolerating code fences or prose. */
+export function extractJsonObject(text: string): unknown {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = fenced ? fenced[1] : text;
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start === -1 || end <= start) throw new Error("No JSON object in model output");
+  return JSON.parse(body.slice(start, end + 1));
+}
+
+function toResult(parsed: unknown): AiSkillResult {
+  const p = (parsed ?? {}) as {
+    scores?: Record<string, unknown>;
+    confidence?: unknown;
+    justification?: Record<string, unknown>;
+  };
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 300) : "");
+  return {
+    scores: {
+      backend: clampScore(p.scores?.backend),
+      frontend: clampScore(p.scores?.frontend),
+      ml: clampScore(p.scores?.ml),
+      systems: clampScore(p.scores?.systems),
+      devops: clampScore(p.scores?.devops),
+    },
+    confidence: clampScore(p.confidence),
+    justification: {
+      backend: text(p.justification?.backend),
+      frontend: text(p.justification?.frontend),
+      ml: text(p.justification?.ml),
+      systems: text(p.justification?.systems),
+      devops: text(p.justification?.devops),
+    },
+  };
+}
+
 /**
- * Calls the OpenAI API to analyze skill signals.
- * Falls back to deterministic heuristic if no API key is configured.
+ * Asks Claude to estimate skill levels from the evidence.
+ * Falls back to a deterministic heuristic when ANTHROPIC_API_KEY is unset,
+ * the request fails or times out, or the reply isn't valid JSON, so skill
+ * analysis always returns something sensible.
  */
 export async function analyzeSkillsWithAi(
   signals: SkillSignals,
   selfScores: SkillScores,
   repoCount: number,
-  deliveryCount: number
+  deliveryCount: number,
+  fetchImpl: typeof fetch = fetch
 ): Promise<AiSkillResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
     return deterministicFallback(signals, selfScores, repoCount, deliveryCount);
@@ -101,53 +144,35 @@ export async function analyzeSkillsWithAi(
   const prompt = buildPrompt(signals, selfScores, repoCount, deliveryCount);
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetchImpl(ANTHROPIC_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a precise technical skill assessment engine. Return only valid JSON.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
+        model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
         max_tokens: 800,
+        temperature: 0.2,
+        system: "You are a precise technical skill assessment engine. Reply with one JSON object and nothing else.",
+        messages: [{ role: "user", content: prompt }],
       }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
     if (!res.ok) {
-      console.error("OpenAI API error:", res.status, await res.text());
+      console.error("Anthropic API error:", res.status);
       return deterministicFallback(signals, selfScores, repoCount, deliveryCount);
     }
 
-    const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content?.trim();
+    const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
+    const raw = (data.content ?? [])
+      .filter((b) => b.type === "text" && typeof b.text === "string")
+      .map((b) => b.text)
+      .join("");
 
-    const parsed = JSON.parse(raw);
-
-    return {
-      scores: {
-        backend: clampScore(parsed.scores?.backend),
-        frontend: clampScore(parsed.scores?.frontend),
-        ml: clampScore(parsed.scores?.ml),
-        systems: clampScore(parsed.scores?.systems),
-        devops: clampScore(parsed.scores?.devops),
-      },
-      confidence: clampScore(parsed.confidence),
-      justification: {
-        backend: parsed.justification?.backend ?? "",
-        frontend: parsed.justification?.frontend ?? "",
-        ml: parsed.justification?.ml ?? "",
-        systems: parsed.justification?.systems ?? "",
-        devops: parsed.justification?.devops ?? "",
-      },
-    };
+    return toResult(extractJsonObject(raw));
   } catch (err) {
     console.error("AI analysis failed, using deterministic fallback:", err);
     return deterministicFallback(signals, selfScores, repoCount, deliveryCount);
