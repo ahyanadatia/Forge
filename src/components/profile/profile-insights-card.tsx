@@ -43,13 +43,13 @@ export function ProfileInsightsCard({
       </CardHeader>
       <CardContent className="flex-1 space-y-5">
         {/* What this reflects */}
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Derived from verified deliveries, reliability outcomes, and evidence signals.
         </p>
 
         {/* Top signals */}
         <div className="space-y-2">
-          <h4 className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+          <h4 className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
             Top signals
           </h4>
           <div className="space-y-1.5">
@@ -73,12 +73,12 @@ export function ProfileInsightsCard({
 
         {/* Next actions */}
         <div className="space-y-2">
-          <h4 className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+          <h4 className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
             {computed ? "Next improvements" : "Get started"}
           </h4>
           <ul className="space-y-1.5">
             {suggestions.slice(0, 2).map((s, i) => (
-              <li key={i} className="flex gap-1.5 text-[11px] text-muted-foreground leading-snug">
+              <li key={i} className="flex gap-1.5 text-xs text-muted-foreground leading-snug">
                 <ArrowUpRight className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground/50" />
                 <span>{s}</span>
               </li>
@@ -100,7 +100,7 @@ function SignalRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center justify-between text-[11px]">
+    <div className="flex items-center justify-between text-xs">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3 w-3 text-muted-foreground/50" />
         {label}

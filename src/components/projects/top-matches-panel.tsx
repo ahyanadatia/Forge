@@ -128,7 +128,7 @@ export function TopMatchesPanel({ projectId }: Props) {
               {/* Center: Compatibility */}
               <div className="text-center shrink-0 w-20">
                 <p className="text-xl font-semibold tabular-nums">{m.compatibility.scorePercent}%</p>
-                <p className="text-[10px] text-muted-foreground leading-tight">
+                <p className="text-[11px] text-muted-foreground leading-tight">
                   {m.acceptance.percent}% likely
                 </p>
               </div>
@@ -136,7 +136,7 @@ export function TopMatchesPanel({ projectId }: Props) {
               {/* Right: Reasons */}
               <div className="hidden sm:flex flex-col gap-0.5 shrink-0 max-w-[180px]">
                 {m.compatibility.reasons.slice(0, 2).map((r, i) => (
-                  <span key={i} className="text-[11px] text-muted-foreground truncate">{r}</span>
+                  <span key={i} className="text-xs text-muted-foreground truncate">{r}</span>
                 ))}
               </div>
 

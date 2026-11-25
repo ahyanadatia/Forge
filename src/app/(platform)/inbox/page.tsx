@@ -165,7 +165,7 @@ export default function InboxPage() {
             <Mail className="h-3.5 w-3.5" />
             Invites
             {pending.length > 0 && (
-              <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+              <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
                 {pending.length}
               </span>
             )}
@@ -284,7 +284,7 @@ function InviteCard({
                 {project?.title ?? "Unknown Project"}
               </Link>
               {project?.category && (
-                <Badge variant="secondary" className="text-[10px] shrink-0">
+                <Badge variant="secondary" className="text-[11px] shrink-0">
                   {getCategoryLabel(project.category)}
                 </Badge>
               )}

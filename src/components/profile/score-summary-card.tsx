@@ -82,14 +82,14 @@ export function ScoreSummaryCard({
 
           <div className="flex items-center gap-2 mt-1.5">
             {band && (
-              <Badge variant="secondary" className="text-[10px] font-medium h-5">
+              <Badge variant="secondary" className="text-[11px] font-medium h-5">
                 {band}
               </Badge>
             )}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="outline" className="text-[10px] h-5 cursor-help">
+                  <Badge variant="outline" className="text-[11px] h-5 cursor-help">
                     Confidence: {confDisplay}
                   </Badge>
                 </TooltipTrigger>
@@ -114,11 +114,11 @@ export function ScoreSummaryCard({
             return (
               <div key={key} className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {label}
                     <span className="ml-1 opacity-40">{weight}</span>
                   </span>
-                  <span className="text-[11px] font-medium tabular-nums">
+                  <span className="text-xs font-medium tabular-nums">
                     {formatBarValue(value)}
                   </span>
                 </div>
@@ -143,14 +143,14 @@ export function ScoreSummaryCard({
               {onOpenExplainer && (
                 <button
                   onClick={onOpenExplainer}
-                  className="block w-full text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="block w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   How this works
                 </button>
               )}
             </div>
           ) : lastScoredAt ? (
-            <p className="text-[10px] text-muted-foreground/60">
+            <p className="text-[11px] text-muted-foreground/60">
               Last calculated{" "}
               {new Date(lastScoredAt).toLocaleDateString(undefined, {
                 month: "short",
