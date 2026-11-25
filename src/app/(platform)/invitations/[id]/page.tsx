@@ -14,7 +14,7 @@ import { untyped } from "@/lib/supabase/untyped";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function getName(b: any) {
@@ -25,7 +25,8 @@ function getInitials(b: any) {
   return ((b?.first_name?.[0] ?? b?.full_name?.[0] ?? "?") + (b?.last_name?.[0] ?? "")).toUpperCase();
 }
 
-export default async function InvitePage({ params }: Props) {
+export default async function InvitePage(props: Props) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
